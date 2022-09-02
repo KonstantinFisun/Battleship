@@ -357,9 +357,9 @@ class Battleship(bat.Ui_MainWindow):
     def lose(self):
         msg = QMessageBox()
         # Название окна
-        msg.setWindowTitle("Проигрышь")
+        msg.setWindowTitle("Ошибка")
         # Техт
-        msg.setText("К сожалению, вы проиграли. Нажмите начать игру, чтобы начать сначала")
+        msg.setText("Не удалось подключиться к файлу Prolog")
 
         # Иконка
         msg.setIcon(QMessageBox.Information)
