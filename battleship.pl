@@ -63,10 +63,6 @@ readStream(Stream, Result) :-
 
 
 
-
-
-
-
 % ------------------------------------------------------------------------
 % Считываем ход игрока
 read_validate_move :-
@@ -120,7 +116,7 @@ canAttempt(Coord, B) :-
 % Index - индекс
 % Space -
 my_get(Board, Index, Space) :-
-    Index > -1, Index < 25,
+    Index > -1, Index < 100,
     get4(Board, 0, Index, Space),!.
 
 % Получаем значение ячейки на позиции Index
@@ -139,20 +135,20 @@ get4([_|T], Curr, Index, Space) :-
 % Координаты поля
 coord(Row, Col) :-
     atomic(Row), atomic(Col), % Проверяем атом или целое
-    Row > -1, Row < 5,
-    Col > -1, Col < 5.
+    Row > -1, Row < 10,
+    Col > -1, Col < 10.
 
 
 % Преобразует строку и столбец в индекс
 toIndex(coord(Row, Col), Index) :-
-    Index is (Row * 5) + Col.
+    Index is (Row * 10) + Col.
 
 % Преобразует индекс в строку и столбец
 toCoord(Index, coord(Row, Col)) :-
     atomic(Index),
-    Index > -1, Index < 25,
-    Row is div(Index, 5),
-    Col is mod(Index, 5).
+    Index > -1, Index < 100,
+    Row is div(Index, 10),
+    Col is mod(Index, 10).
 
 
 
@@ -428,7 +424,7 @@ computer_turn :-
 % Действие для компьютера по умолчанию
 computer_turn :-
     \+ game_won,
-    write('Your enemy\'s turn. >:('), nl,
+    write('\nХод врага.'), nl,
 
     % Добавляем в базу, что это ход компьютера
     assert( turn(computer) ),
@@ -473,17 +469,17 @@ show_player :-
     show_board(PlayerBoard), % Выводим поле игрока
     write('|  К - Неподбитые корабли   |'), nl,
     write('|  П - Промах               |'), nl,
-    write('|  У - Подбитые корабли     |'), nl,
+    write('|  X - Подбитые корабли     |'), nl,
     show_line, nl. % Вывод линии
 
 
 % Показать доску
 % show_board(+Board)
 % Board - поле
-show_board(B) :- show_line, show_board(B, 0).
+show_board(B) :- write('+-0--1---2--3---4--5---6--7---8--9-+'),nl, write('0'), show_board(B, 0).
 
 % Вывод линии
-show_line :- write('+-------------------+'), nl.
+show_line :- write('+--------------------------------------+'), nl.
 
 
 show_board([H|T], N) :-
@@ -500,14 +496,14 @@ show_board([], _) :- write('|'), nl, show_line.
 show_space(Space) :- write('| '), write(Space), write(' ').
 
 % Проверяем конец строки
-next_line(N) :- ((X is mod(N, 5), X > 0); N = 0),!.
-next_line(N) :- \+ N = 0, 0 is mod(N, 5), write('|'), nl, show_line.
+next_line(N) :- ((X is mod(N, 10), X > 0);N = 0),!.
+next_line(N) :- \+ N = 0, 0 is mod(N, 10), write('|'), nl, show_line, X is div(N,10),write(X).
 
 % Отображение ячеек у доски
 toDisplay(0, '~').
 toDisplay(1, 'К').
 toDisplay(2, 'П').
-toDisplay(3, 'У').
+toDisplay(3, 'X').
 
 
 % -------------------------------------------------------------
@@ -557,8 +553,8 @@ turn_result :-
 generateComputerBoard(B) :-
     repeat, % Повторяем до тех пор пока не встретим fail
     N = 3, % !!!!!!!!!!!!!!!!!!!!!!
-    createEmptyBoard(BA), % Создание списка нулей, размерности 25
-    placeShips(N,BA,B), % Передаем 3, 25
+    createEmptyBoard(BA), % Создание списка нулей, размерности 100
+    placeShips(N,BA,B), % Передаем 3, 100
     (validateBoard(B) -> true, ! ; fail). % Проверяем правильна ли составлена доска
 
 
@@ -589,13 +585,16 @@ placeShip(B,BR) :-
 
 % Выбираем случайную позицию на поле
 % randomPosition(-resultingPosition)
-randomPosition(P) :- random_between(0,24,P).
+randomPosition(P) :- random_between(0,99,P).
 
 
 % Возвращает значение true, если выбранная позиция не используется
 % positionAvailable(+Board,+Position)
 positionAvailable(B,P) :- nth0(P,B,0). % nth0 ищет в B, элемент 0 с индексом P
 
+% Создание списка от X до N
+list_num(X, [X|T], N):- X =< N, X1 is X + 1,!,list_num(X1, T, N).
+list_num(_,[],_).
 
 
 % Находит смежные квадраты заданного P
@@ -604,25 +603,27 @@ positionAvailable(B,P) :- nth0(P,B,0). % nth0 ищет в B, элемент 0 с
 % ListOfAdjacentSquares - получаемые смежные клетки с заданной
 
 % Если корабль находится внутри матрицы
-findAdjacents(P,L) :- member(P,[6,7,8,11,12,13,16,17,18]), P1 is P-5, P2 is P-1, P3 is P+1, P4 is P+5, L = [P1,P2,P3,P4],!.
+findAdjacents(P,L) :-
+    board(list_11_89,R0123456789),
+    member(P,R0123456789), P1 is P-10, P2 is P-1, P3 is P+1, P4 is P+10, L = [P1,P2,P3,P4],!.
 
 % Если корабль находится вверху матрицы без углов
-findAdjacents(P,L) :- member(P,[1,2,3]), P1 is P-1, P2 is P+1, P3 is P+5, L = [P1,P2,P3],!.
+findAdjacents(P,L) :- member(P,[1,2,3,4,5,6,7,8]), P1 is P-1, P2 is P+1, P3 is P+10, L = [P1,P2,P3],!.
 
 % Если корабль находится слева матрицы без углов
-findAdjacents(P,L) :- member(P,[5,10,15]), P1 is P-5, P2 is P+1, P3 is P+5, L = [P1,P2,P3],!.
+findAdjacents(P,L) :- member(P,[10,20,30,40,50,60,70,80]), P1 is P-10, P2 is P+1, P3 is P+10, L = [P1,P2,P3],!.
 
 % Если корабль находится справа матрицы без углов
-findAdjacents(P,L) :- member(P,[9,14,19]), P1 is P-5, P2 is P-1, P3 is P+5, L = [P1,P2,P3],!.
+findAdjacents(P,L) :- member(P,[19,29,39,49,59,69,79,89]), P1 is P-10, P2 is P-1, P3 is P+10, L = [P1,P2,P3],!.
 
 % Если корабль находится снизу матрицы без углов
-findAdjacents(P,L) :- member(P,[21,22,23]), P1 is P-5, P2 is P-1,P3 is P+1, L = [P1,P2,P3],!.
+findAdjacents(P,L) :- member(P,[91,92,93,94,95,96,97,98]), P1 is P-10, P2 is P-1,P3 is P+1, L = [P1,P2,P3],!.
 
 % Если корабль находится в углах матрицы
-findAdjacents(P,L) :- P = 0, L = [1,5],!.
-findAdjacents(P,L) :- P = 4, L = [3,9],!.
-findAdjacents(P,L) :- P = 20, L = [15,21],!.
-findAdjacents(P,L) :- P = 24, L = [19,23],!.
+findAdjacents(P,L) :- P = 0, L = [1,10],!.
+findAdjacents(P,L) :- P = 9, L = [8,19],!.
+findAdjacents(P,L) :- P = 90, L = [80,91],!.
+findAdjacents(P,L) :- P = 99, L = [89,98],!.
 
 
 % Заменяет n-й элемент в списке заданным значением
@@ -632,7 +633,7 @@ findAdjacents(P,L) :- P = 24, L = [19,23],!.
 % ReplacementValue - значение, которое ставим
 % ResultingList - полученный список
 replaceNth([_|T],0,V,[V|T]).
-replaceNth([H|T],P,V,[H|R]) :- P > 0, P < 25, P1 is P - 1, replaceNth(T,P1,V,R).
+replaceNth([H|T],P,V,[H|R]) :- P > 0, P < 100, P1 is P - 1, replaceNth(T,P1,V,R).
 
 
 
@@ -642,9 +643,9 @@ replaceNth([H|T],P,V,[H|R]) :- P > 0, P < 25, P1 is P - 1, replaceNth(T,P1,V,R).
 % -------------------------------------------------------------------------------------------
 % Определяем, допустима ли доска для этой игры
 validateBoard(B) :-
-    length(B,25), % Проверяем длину
+    length(B,100), % Проверяем длину
     spacesOccupied(B,6,1), %Проверяем количество единиц
-    spacesOccupied(B,19,0), % Проверяем количество нулей
+    spacesOccupied(B,94,0), % Проверяем количество нулей
     occupiedValid(B,3). % Проверяем, что число кораблей 3
 
 
@@ -674,21 +675,48 @@ occupiedValid(B,NST) :-
     countShips(R3,CR3,NS3,NS4),
     getRow(4,B,R4), % Получаем пятую строку
     countShips(R4,CR4,NS4,NS5),
+    getRow(5,B,R5), % Получаем 6 строку
+    countShips(R5,CR5,NS5,NS6),
+    getRow(6,B,R6), % Получаем 7 строку
+    countShips(R6,CR6,NS6,NS7),
+    getRow(7,B,R7), % Получаем 8 строку
+    countShips(R7,CR7,NS7,NS8),
+    getRow(8,B,R8), % Получаем 9 строку
+    countShips(R8,CR8,NS8,NS9),
+    getRow(9,B,R9), % Получаем 10 строку
+    countShips(R9,CR9,NS9,NS10),
+
     append(CR0,CR1,CRN1), % Объединяем полученные списки
     append(CRN1,CR2,CRN2),
     append(CRN2,CR3,CRN3),
     append(CRN3,CR4,CRN4),
-    getColumn(0,CRN4,C0), % Получаем первый столбец
-    countShips(C0,_,NS5,NS6),
-    getColumn(1,CRN4,C1), % Получаем второй столбец
-    countShips(C1,_,NS6,NS7),
-    getColumn(2,CRN4,C2), % Получаем третий столбец
-    countShips(C2,_,NS7,NS8),
-    getColumn(3,CRN4,C3), % Получаем четвертый столбец
-    countShips(C3,_,NS8,NS9),
-    getColumn(4,CRN4,C4), % Получаем пятый столбец
-    countShips(C4,_,NS9,NS10),
-    NS10 = NST. % Общее число кораблей
+    append(CRN4,CR5,CRN5),
+    append(CRN5,CR6,CRN6),
+    append(CRN6,CR7,CRN7),
+    append(CRN7,CR8,CRN8),
+    append(CRN8,CR9,CRN9),
+
+    getColumn(0,CRN9,C0), % Получаем первый столбец
+    countShips(C0,_,NS10,NS11),
+    getColumn(1,CRN9,C1), % Получаем второй столбец
+    countShips(C1,_,NS11,NS12),
+    getColumn(2,CRN9,C2), % Получаем третий столбец
+    countShips(C2,_,NS12,NS13),
+    getColumn(3,CRN9,C3), % Получаем четвертый столбец
+    countShips(C3,_,NS13,NS14),
+    getColumn(4,CRN9,C4), % Получаем пятый столбец
+    countShips(C4,_,NS14,NS15),
+    getColumn(5,CRN9,C5), % Получаем 6 столбец
+    countShips(C5,_,NS15,NS16),
+    getColumn(6,CRN9,C6), % Получаем 7 столбец
+    countShips(C6,_,NS16,NS17),
+    getColumn(7,CRN9,C7), % Получаем 8 столбец
+    countShips(C7,_,NS17,NS18),
+    getColumn(8,CRN9,C8), % Получаем 9 столбец
+    countShips(C8,_,NS18,NS19),
+    getColumn(9,CRN9,C9), % Получаем 10 столбец
+    countShips(C9,_,NS19,NS20),
+    NS20 = NST. % Общее число кораблей
 
 % Количество кораблей на поле
 % countShips(Board,ResultingBoard,InitialValue,ShipsCounted)
@@ -711,9 +739,9 @@ countShips([1,1|T],[0,0|CR],A,N) :- A1 is A+1, countShips(T,CR,A1,N). % Если
 % ColumnNumber - номер столбца
 % Board - поле
 % Column - Полученный столбец
-getColumn(N,_,[]) :- N>24,!.
+getColumn(N,_,[]) :- N>99,!.
 getColumn(N,B,C) :-
-    nth0(N,B,A), N1 is N+5, getColumn(N1,B,C1), C = [A|C1].
+    nth0(N,B,A), N1 is N+10, getColumn(N1,B,C1), C = [A|C1].
 
 % Получаем строку заданного номера
 % getColumn(RowNumber,Board,Row)
@@ -721,7 +749,7 @@ getColumn(N,B,C) :-
 % Board - поле
 % Row - Полученная строка
 getRow(N,B,R) :-
-    N1 is N*5, N2 is N1+5, sliceList(B,N1,N2,R),!.
+    N1 is N*10, N2 is N1+10, sliceList(B,N1,N2,R),!.
 
 % Разрезает список на части, чтобы создать список меньшего размера с
 % учетом начальной и конечной позиций.
@@ -741,7 +769,7 @@ sliceList(_,0,0,[]):-!.
 
 %--------------------------------------------------------------
 % Создание пустой доски
-createEmptyBoard(R) :- listOfZeros(25,R).
+createEmptyBoard(R) :- listOfZeros(100,R).
 
 % Создание списка нулей
 % listOfZeros(+N,-R) в R получаем лист нулей с размерностью N.
@@ -841,7 +869,7 @@ calculate(Board, L) :- calculate(0, Board, [], L).
 % L - итерация
 % ResultList - результат
 calculate(Index, Board, L1, [(Index, Num)|L2]) :-
-    Index > -1, Index < 25, % Если индекс в поле
+    Index > -1, Index < 100, % Если индекс в поле
     my_get(Board, Index, Value), % Получаем значение индекса
     \+ attempted(Value), % Если в эту клетку ещё не стреляли
     findAdjacents(Index, Neighbours), % Находим соседей
@@ -850,12 +878,12 @@ calculate(Index, Board, L1, [(Index, Num)|L2]) :-
     calculate(NextIndex, Board, L1, L2). % Идем дальше
 
 calculate(Index, Board, L1, L2) :-
-    Index > -1, Index < 25, % Если индекс в поле
+    Index > -1, Index < 100, % Если индекс в поле
     my_get(Board, Index, Value), % Получаем значение индекса
     attempted(Value), % Если в эту клетку уже стреляли
     NextIndex is Index + 1, % Прибавляем индекс
     calculate(NextIndex, Board, L1, L2). % Идем дальше
-calculate(Index, _, L, L) :- (Index < 0, !; Index > 24,!). % дно рекурсии
+calculate(Index, _, L, L) :- (Index < 0, !; Index > 99,!). % дно рекурсии
 
 
 % Получаем количество куда можно стрельнуть
@@ -867,7 +895,7 @@ calculateAdjacents([H|T], Board, Num) :-
     my_get(Board, H, Value), % Получаем значение в индексе
     \+ attempted(Value), % Если в нем нету попаданий
     calculateAdjacents(T, Board, X), % Идем дальше
-    Num is X + 1. % Прибавляем дальше
+    Num is X + 1,!. % Прибавляем дальше
 
 calculateAdjacents([H|T], Board, Num) :-
     my_get(Board, H, Value), % Получаем значение в индексе
@@ -993,5 +1021,16 @@ clean_computer_mode :- repeat, (retract( computer_mode(_) ) -> false; true).
 
 random_number(N1,N2,Value):-random_between(N1,N2,Value).
 
-% Пустая матрицы 5 на 5
-board(empty_board,[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).
+% Пустая матрицы 10 на 10
+board(empty_board,
+      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).
+board(list_11_89,[11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,31,32,33,34,35,36,37,38,41,42,43,44,45,46,47,48,51,52,53,54,55,56,57,58,61,62,63,64,65,66,67,68,71,72,73,74,75,76,77,78,81,82,83,84,85,86,87,88]).
