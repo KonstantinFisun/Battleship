@@ -1,5 +1,5 @@
 % Динамические предикаты поля,
-:- dynamic game_won/0, current_move/2, turn/1, hit_attempt/1, turn_result/1, computer_mode/1, board/2.
+:- dynamic game_won/0, current_move/2, turn/1, hit_attempt/1, turn_result/1, computer_mode/1, board/2, ships/2.
 
 
 %% Запуск игры
@@ -30,6 +30,7 @@ play_game :-
 
     % Генерация компьютерного поля
     generateComputerBoard(ComputerBoard), % Получаем поле компьютера
+
     assert( board(computer_primary, ComputerBoard) ), % Добавление поля компьютера в базу
     assert( board(computer_tracking, Empty) ), % Добавление помеченное поле компьютера в базу
     assert( computer_mode(hunt) ), % Добавляем предикат
@@ -96,6 +97,9 @@ validate(Row, Col) :-
     1 - Занятая, без попадания
     2 - Пустая, с попаданием
     3 - Занятая, с попадание
+    4 - Зона вокруг корабля, без попадания
+    5 - Зона вокруг корабля, с попаданием
+
 */
 
 attempted(2).
@@ -504,6 +508,7 @@ toDisplay(0, '~').
 toDisplay(1, 'К').
 toDisplay(2, 'П').
 toDisplay(3, 'X').
+toDisplay(4, '--').
 
 
 % -------------------------------------------------------------
@@ -550,28 +555,143 @@ turn_result :-
 
 % Генерируем случайное поле для компьютера
 % generateComputerBoard(-B) - возвращает в B сгенерированное поле
-generateComputerBoard(B) :-
+generateComputerBoard(-B) :-
     repeat, % Повторяем до тех пор пока не встретим fail
-    N = 3, % !!!!!!!!!!!!!!!!!!!!!!
     createEmptyBoard(BA), % Создание списка нулей, размерности 100
-    placeShips(N,BA,B), % Передаем 3, 100
-    (validateBoard(B) -> true, ! ; fail). % Проверяем правильна ли составлена доска
+
+    placeShip_4(BA,B0,Ship_4), % Создание корабля 4 на 1
+    placeShips_3(2,B0,B1,[],Ship_3),
+    placeShips_2(3,B1,B2,[],Ship_2),
+    placeShips_1(4,B2,B,[],Ship_1),show_board(B),!.
+    % assert(ships(ships_enemy,[Ship_4,Ship_3,Ship_2,Ship_1])),!.
+    % (validateBoard(B) -> true, ! ; fail). % Проверяем правильна ли составлена доска
 
 
-% Размещаем корабли на доске
-% placeShips+(NumberOfShips,+InitialBoard,ResultingBoard)
-% NumberOfShips - количество кораблей
-% InitialBoard - пустой список
+% Размещаем корабль 4 на 1 на доске
+placeShip_4(B,BR,Ship):-
+    repeat,
+    randomPosition(P), % Выбираем случайную позицию на поле
+    % Возвращает значение true, если выбранная позиция не используется
+    positionAvailable(B,P),
+    findAdjacents(P,L), % Находит смежные квадраты заданного P
+    length(L,LL), LL1 is LL-1, % Количество смежных квадратов
+    random_between(0,LL1,I1), % Выбираем случайный квадрат из смежный
+    nth0(I1,L,P1), % nth0 ищет в L, элемент P1 с индексом I1(получаем элемент P1)
+     positionAvailable(B,P1), % Возвращает значение true, если выбранная позиция не используется
+    next_point_4(B,P,P1,P3),
+    append([P,P1],[P3],Ship0),
+    % Сортируем от больше к меньшему по второму элементу
+    sort(Ship0, [P11,_,P33]),
+    next_point_4(B,P11,P33,P4),
+    append(Ship0,[P4],[P_1,P_2,P_3,P_4]),
+    replaceNth(B,P_1,1,B0),  % Заменяет p-й элемент в списке B значением 1, возвращает BT
+    replaceNth(B0,P_2,1,B1), % Заменяет p2-й элемент в списке BT значением 1, возвращает B1
+    replaceNth(B1,P_3,1,B2),
+    replaceNth(B2,P_4,1,B3),
+    findAdjacents_d(P_1,List1),% Находим позиции вокруг P
+    findAdjacents_d(P_2,List2), % Находим позиции вокруг P1
+    findAdjacents_d(P_3,List3),
+    findAdjacents_d(P_4,List4),
+    append(List1,List2,List5), % Объединяем полученные позиции
+    append(List3,List4,List6),
+    append(List5,List6,List7),
+    set(List7,List77),
+    % Удаляем позиции кораблей
+    del(P_1,List77,List8),
+    del(P_2,List8,List9),
+    del(P_3,List9,List10),
+    del(P_4,List10,List11),
+    replaceNth_list(B3,4,List11,BR), % Делаем область вокруг них
+    Ship = [P_1,P_2,P_3,P_4],!
+    ;fail.
+
+
+% Генерация новой точки
+% Корабля располагается по столбцу
+next_point_4(B,P1,P2,P3):-
+    % Проверка, что это столбец
+    (10 is abs(P1-P2);20 is abs(P1-P2)),
+    (P1>P2 -> (A is P2-10, positionAvailable(B, A),  P3 is  A,!); A is P1-10, positionAvailable(B,A), P3 is A,!)
+    .
+next_point_4(B,P1,P2,P3):-
+     (10 is abs(P1-P2);20 is abs(P1-P2)),
+    (P1>P2 -> (A is P1+10, positionAvailable(B, A),  P3 is  A,!); A is P2+10, positionAvailable(B,A), P3 is A,!).
+
+% Корабль располагается по строке
+next_point_4(B,P1,P2,P3):-
+    (1 is abs(P1-P2);2 is abs(P1-P2)),
+    (P1>P2 -> (A is P2-1, not(9 is mod(A,10)), positionAvailable(B, A),  P3 is  A,!); A is P1-1, not(9 is mod(A,10)), positionAvailable(B,A), P3 is A,!)
+    .
+next_point_4(B,P1,P2,P3):-
+     (1 is abs(P1-P2);2 is abs(P1-P2)),
+    (P1>P2 -> (A is P1+1, not(0 is mod(A,10)), positionAvailable(B, A),  P3 is  A,!); A is P2+1,not(0 is mod(A,10)), positionAvailable(B,A), P3 is A,!).
+
+
+
+% Размещаем корабли на доске 2 на 1
+% placeShips+(+NumberOfShips,+InitialBoard,-ResultingBoard,ShipList)
+% NumberOfShips - количество кораблей InitialBoard - пустой список
 % ResultingBoard - результат
-placeShips(0,B,B).
-placeShips(N,BA,B) :- placeShip(BA,BR), N1 is N-1, placeShips(N1,BR,B).
+%
+placeShips_3(0,B,B,Res,Res):-!.
+placeShips_3(N,BA,B,ShipList,Res) :- placeShip_3(BA,BR,Ship), append(ShipList,[Ship],ShipListNew), N1 is N-1, placeShips_3(N1,BR,B,ShipListNew,Res).
 
 
-% Размещаем один корабль на доске
-% placeShip(+InitialBoard,-ResultingBoard)
+% Размещаем один корабль на доске 2 на 1
+% placeShip(+InitialBoard,-ResultingBoard,)
 % InitialBoard - список
 % ResultingBoard - результат
-placeShip(B,BR) :-
+
+placeShip_3(B,BR,Ship) :-
+    repeat,
+    randomPosition(P), % Выбираем случайную позицию на поле
+    % Возвращает значение true, если выбранная позиция не используется
+    positionAvailable(B,P),
+    findAdjacents(P,L), % Находит смежные квадраты заданного P
+    length(L,LL), LL1 is LL-1, % Количество смежных квадратов
+    random_between(0,LL1,I1), % Выбираем случайный квадрат из смежный
+    nth0(I1,L,P1), % nth0 ищет в L, элемент P1 с индексом I1(получаем элемент P1)
+     positionAvailable(B,P1), % Возвращает значение true, если выбранная позиция не используется
+    next_point_4(B,P,P1,P3),
+    append([P,P1],[P3],Ship0),
+    % Сортируем от больше к меньшему по второму элементу
+    sort(Ship0, [P11,P22,P33]),
+    replaceNth(B,P11,1,B0),  % Заменяет p-й элемент в списке B значением 1, возвращает BT
+    replaceNth(B0,P22,1,B1), % Заменяет p2-й элемент в списке BT значением 1, возвращает B1
+    replaceNth(B1,P33,1,B2),
+    findAdjacents_d(P11,List1),% Находим позиции вокруг P
+    findAdjacents_d(P22,List2), % Находим позиции вокруг P1
+    findAdjacents_d(P33,List3),
+    append(List1,List2,List4), % Объединяем полученные позиции
+    append(List4,List3,List5),
+    set(List5,List55),
+    % Удаляем позиции кораблей
+    del(P11,List55,List6),
+    del(P22,List6,List7),
+    del(P33,List7,List8),
+    replaceNth_list(B2,4,List8,BR), % Делаем область вокруг них
+    Ship = [P11,P22,P33],!
+    ;fail.
+
+
+
+
+% Размещаем корабли на доске 2 на 1
+% placeShips+(+NumberOfShips,+InitialBoard,-ResultingBoard,ShipList)
+% NumberOfShips - количество кораблей InitialBoard - пустой список
+% ResultingBoard - результат
+%
+placeShips_2(0,B,B,Res,Res):-!.
+placeShips_2(N,BA,B,ShipList,Res) :- placeShip_2(BA,BR,Ship), append(ShipList,[Ship],ShipListNew), N1 is N-1, placeShips_2(N1,BR,B,ShipListNew,Res).
+
+
+% Размещаем один корабль на доске 2 на 1
+% placeShip(+InitialBoard,-ResultingBoard,)
+% InitialBoard - список
+% ResultingBoard - результат
+
+placeShip_2(B,BR,Ship) :-
+    repeat,
     randomPosition(P), % Выбираем случайную позицию на поле
     positionAvailable(B,P), % Возвращает значение true, если выбранная позиция не используется
     findAdjacents(P,L), % Находит смежные квадраты заданного P
@@ -579,8 +699,50 @@ placeShip(B,BR) :-
     random_between(0,LL1,I1), % Выбираем случайный квадрат из смежный
     nth0(I1,L,P1), % nth0 ищет в L, элемент P1 с индексом I1(получаем элемент P1)
     positionAvailable(B,P1), % Возвращает значение true, если выбранная позиция не используется
+    append([P],[P1],Ship),
     replaceNth(B,P,1,BT),  % Заменяет p-й элемент в списке B значением 1, возвращает BT
-    replaceNth(BT,P1,1,BR). % Заменяет p1-й элемент в списке BT значением 1, возвращает BR
+    replaceNth(BT,P1,1,BR0), % Заменяет p1-й элемент в списке BT значением 1, возвращает BR
+    findAdjacents_d(P,List1),% Находим позиции вокруг P
+    findAdjacents_d(P1,List2), % Находим позиции вокруг P1
+    append(List1,List2,ListShip), % Объединяем полученные позиции
+    % Удаляем позиции кораблей
+    del(P,ListShip,ListShip1),
+    del(P1,ListShip1,ListShip2),
+    set(ListShip2,ListShip3),
+    replaceNth_list(BR0,4,ListShip3,BR), % Делаем область вокруг них
+    !;fail.
+
+
+% Размещаем корабли на доске 1 на 1
+% placeShips+(+NumberOfShips,+InitialBoard,-ResultingBoard,ShipList)
+% NumberOfShips - количество кораблей InitialBoard - пустой список
+% ResultingBoard - результат
+%
+placeShips_1(0,B,B,Res,Res):-!.
+placeShips_1(N,BA,B,ShipList,Res) :- placeShip_1(BA,BR,Ship), append(ShipList,[Ship],ShipListNew), N1 is N-1, placeShips_1(N1,BR,B,ShipListNew,Res).
+
+
+% Размещаем один корабль на доске 2 на 1
+% placeShip(+InitialBoard,-ResultingBoard,)
+% InitialBoard - список
+% ResultingBoard - результат
+
+placeShip_1(B,BR,Ship) :-
+    repeat,
+    randomPosition(P1), % Выбираем случайную позицию на поле
+    positionAvailable(B,P1), % Возвращает значение true, если выбранная позиция не используется
+    replaceNth(B,P1,1,B0),  % Заменяет p-й элемент в списке B значением 1, возвращает B0
+    findAdjacents_d(P1,List1), % Находим позиции вокруг P1
+    replaceNth_list(B0,4,List1,BR), % Делаем область вокруг ниx
+    Ship = [P1],!;fail.
+
+
+
+% Идем по списку и заменяем все элементы
+replaceNth_list(ResultingList,_,[],ResultingList):-!.
+replaceNth_list(InitialList,ReplacementValue,[H|T],ResultingList):-
+    replaceNth(InitialList,H,ReplacementValue,Result),
+    replaceNth_list(Result,ReplacementValue,T,ResultingList),!.
 
 
 % Выбираем случайную позицию на поле
@@ -597,7 +759,7 @@ list_num(X, [X|T], N):- X =< N, X1 is X + 1,!,list_num(X1, T, N).
 list_num(_,[],_).
 
 
-% Находит смежные квадраты заданного P
+% Находит смежные квадраты(не включая диагональные) заданного P
 % findAdjacents(+IndexOfBoard,-ListOfAdjacentSquares)
 % IndexOfBoard - заданная клетка
 % ListOfAdjacentSquares - получаемые смежные клетки с заданной
@@ -626,13 +788,41 @@ findAdjacents(P,L) :- P = 90, L = [80,91],!.
 findAdjacents(P,L) :- P = 99, L = [89,98],!.
 
 
+% Находит смежные квадраты(включая диагональные) заданного P
+% findAdjacents(+IndexOfBoard,-ListOfAdjacentSquares)
+% IndexOfBoard - заданная клетка
+% ListOfAdjacentSquares - получаемые смежные клетки с заданной
+
+% Если корабль находится внутри матрицы
+findAdjacents_d(P,L) :-
+    board(list_11_89,R0123456789),
+    member(P,R0123456789), P1 is P-11,P2 is P-10, P3 is P-9, P4 is P+1, P5 is P+11, P6 is P+10, P7 is P+9, P8 is P-1 , L = [P1,P2,P3,P4,P5,P6,P7,P8],!.
+
+% Если корабль находится вверху матрицы без углов
+findAdjacents_d(P,L) :- member(P,[1,2,3,4,5,6,7,8]), P1 is P-1, P2 is P+1, P3 is P+10, P4 is P+9, P5 is P+11, L = [P1,P2,P3,P4,P5],!.
+
+% Если корабль находится слева матрицы без углов
+findAdjacents_d(P,L) :- member(P,[10,20,30,40,50,60,70,80]), P1 is P-10, P2 is P+1, P3 is P+10, P4 is P-9, P5 is P+11, L = [P1,P2,P3,P4,P5],!.
+
+% Если корабль находится справа матрицы без углов
+findAdjacents_d(P,L) :- member(P,[19,29,39,49,59,69,79,89]), P1 is P-10, P2 is P-1, P3 is P+10, P4 is P-11, P5 is P+9, L = [P1,P2,P3,P4,P5],!.
+
+% Если корабль находится снизу матрицы без углов
+findAdjacents_d(P,L) :- member(P,[91,92,93,94,95,96,97,98]), P1 is P-10, P2 is P-1,P3 is P+1,P4 is P-11, P5 is P-9, L = [P1,P2,P3,P4,P5],!.
+
+% Если корабль находится в углах матрицы
+findAdjacents_d(P,L) :- P = 0, L = [1,10,11],!.
+findAdjacents_d(P,L) :- P = 9, L = [8,18,19],!.
+findAdjacents_d(P,L) :- P = 90, L = [80,81,91],!.
+findAdjacents_d(P,L) :- P = 99, L = [88,89,98],!.
+
 % Заменяет n-й элемент в списке заданным значением
 % replaceNth(InitialList,IndexToReplace,ReplacementValue,ResultingList).
 % InitialList - изначальный список
 % IndexToReplace - индекс, элемент которого заменяем
 % ReplacementValue - значение, которое ставим
 % ResultingList - полученный список
-replaceNth([_|T],0,V,[V|T]).
+replaceNth([_|T],0,V,[V|T]):-!.
 replaceNth([H|T],P,V,[H|R]) :- P > 0, P < 100, P1 is P - 1, replaceNth(T,P1,V,R).
 
 
@@ -644,9 +834,8 @@ replaceNth([H|T],P,V,[H|R]) :- P > 0, P < 100, P1 is P - 1, replaceNth(T,P1,V,R)
 % Определяем, допустима ли доска для этой игры
 validateBoard(B) :-
     length(B,100), % Проверяем длину
-    spacesOccupied(B,6,1), %Проверяем количество единиц
-    spacesOccupied(B,94,0), % Проверяем количество нулей
-    occupiedValid(B,3). % Проверяем, что число кораблей 3
+    spacesOccupied(B,20,1). %Проверяем количество единиц
+    %occupiedValid(B,3). % Проверяем, что число кораблей 3
 
 
 % Определяем сколько мест занято значением V
@@ -1004,6 +1193,7 @@ clean :-
     clean_attempt,
     clean_current_move,
     clean_computer_mode,
+    clean_ships,
     !.
 
 clean_player_primary :- repeat, (retract( board(player_primary,_) ) -> false; true).
@@ -1014,6 +1204,7 @@ clean_turn :- repeat, (retract( turn(_) ) -> false; true).
 clean_attempt :- repeat, (retract( hit_attempt(_) ) -> false; true).
 clean_current_move :- repeat, (retract( current_move(_, _) ) -> false; true).
 clean_computer_mode :- repeat, (retract( computer_mode(_) ) -> false; true).
+clean_ships:-repeat, (retract( ships(_,_) ) -> false; true).
 
 % ---------------------------------------------------------------------------
 % Вспомогательные функции
@@ -1034,3 +1225,22 @@ board(empty_board,
        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
        0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).
 board(list_11_89,[11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,31,32,33,34,35,36,37,38,41,42,43,44,45,46,47,48,51,52,53,54,55,56,57,58,61,62,63,64,65,66,67,68,71,72,73,74,75,76,77,78,81,82,83,84,85,86,87,88]).
+
+
+% Удаление из списка
+del(_,[],[]).
+del(H,[H|Tail],Tail):-!.
+del(X,[H|Tail],[H|NewTail]):-del(X,Tail,NewTail).
+
+
+% Удаление дубликатов из списка
+mymember(X,[X|_]):-!.
+mymember(X,[_|T]) :- mymember(X,T).
+
+set([],[]):-!.
+set([H|T],[H|Out]) :-
+    not(mymember(H,T)),
+    set(T,Out),!.
+set([H|T],Out) :-
+    mymember(H,T),
+    set(T,Out),!.
