@@ -43,8 +43,8 @@ play_game :-
 
     % Игрок начинает первым
     player_turn; % Ход игрока
-    write('Неверный ввод поля.'), nl,
-    write('Пожалуйста введите корректное поле и введите \'run.\' снова.'),
+    write('Игра прекращена.'), nl,
+    write('Для начала игры введите \'run.\'.'),
     fail.
 
 % Конец игры
@@ -77,11 +77,12 @@ readStream(Stream, Result) :-
 % Считываем ход игрока
 read_validate_move :-
     repeat,
-    write('Сделайте ваш ход! fire(Row, Col).'), nl,
-    catch(read(fire(Row, Col)), error(_, _), false), % ловим ошибки при вводе
+    write('Сделайте ход! fire(Row, Col).'), nl,
+    (   catch(read(fire(Row, Col)), error(_, _), false), % ловим ошибки при вводе
         validate(Row, Col), % Проверяем правильность аргументов
         assert( current_move(Row, Col) ) % Добавляем в базу ход
-       -> !,true;fail.
+       -> !,true;
+       ( write('Введите close для выхода'), read(A), A== 'close',!, false;fail )).
 
 % Проверяет, являются ли заданные значения строки и столбца законным ходом для игрока
 validate(Row, Col) :-
@@ -704,10 +705,11 @@ delete_ship_for_player:-
 
     message(Mes),
 
-    string_concat(Mes,'\nВы потопили корабль врага!\n',R0),
-
+    string_concat(Mes,'\nВы потопили корабль врага c индексами : ',R0),
+    p(Ship,ShipST), % Список в строку
+    string_concat(R0,ShipST,R1),
     retract(message(_)),
-    assert(message(R0)),
+    assert(message(R1)),
 
     !.
 
@@ -771,12 +773,19 @@ delete_ship_for_computer:-
 
     message(Mes),
 
-    string_concat(Mes,'\nВраг потопил ваш корабль!\n',R0),
-
+    string_concat(Mes,'\nВраг потопил ваш корабль c индексами : ',R0),
+    p(Ship,ShipST), % Список в строку
+    string_concat(R0,ShipST,R1),
     retract(message(_)),
-    assert(message(R0)),
+    assert(message(R1)),
 
     !.
+
+p([],"").
+p([H|T],S):-
+    p(T,SS),
+    concat(" ",SS,SSS),
+    concat(H,SSS,S).
 
 % Удаление всех попаданий из списка
 
