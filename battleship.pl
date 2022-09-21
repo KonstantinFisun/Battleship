@@ -1,5 +1,5 @@
 % Динамические предикаты поля,
-:- dynamic game_won/0, current_move/2, turn/1, hit_attempt/1, turn_result/1, computer_mode/1, board/2, ships/2.
+:- dynamic game_won/1, current_move/2, turn/1, hit_attempt/1, turn_result/1, computer_mode/1, board/2, ships/2, hit_ships/2, destroy_ship/1, message/1.
 
 
 %% Запуск игры
@@ -19,10 +19,14 @@ start_game :-
 % Запуск алгоритма игры
 play_game :-
     catch(readFile(Board),error(_,_),fail), % Поймать ошибку при открытие файла при этом считываем поле игрока
+    catch(readShips(PlayerShips),error(_,_),fail), % Поймать ошибку при открытие файла при этом считываем корабли игрока
     validateBoard(Board), % Определяем, допустима ли доска для этой игры
     write('Начнем играть!'), nl, % Вывод текста
-
+    assert(ships(player,PlayerShips)), % корабли игрока
+    assert(hit_ships(player,[])), % Попадания игрока
+    assert(hit_ships(computer,[])), % Попадание компьютера
     board(empty_board, Empty),
+
 
     % Генерация поля игрока
     assert( board(player_primary, Board) ), % Добавление поля игрока в базу
@@ -30,13 +34,14 @@ play_game :-
 
     % Генерация компьютерного поля
     generateComputerBoard(ComputerBoard), % Получаем поле компьютера
-
+    show_board(ComputerBoard),
     assert( board(computer_primary, ComputerBoard) ), % Добавление поля компьютера в базу
     assert( board(computer_tracking, Empty) ), % Добавление помеченное поле компьютера в базу
     assert( computer_mode(hunt) ), % Добавляем предикат
 
+    assert(message('')),
+
     % Игрок начинает первым
-    show_player, % Вывод полей
     player_turn; % Ход игрока
     write('Неверный ввод поля.'), nl,
     write('Пожалуйста введите корректное поле и введите \'run.\' снова.'),
@@ -46,15 +51,19 @@ play_game :-
 end_game :-
     write('Спасибо за игру!'), nl,
     write('Чтобы играть введите: \'run.\' !'),
-    retract( game_won ).
-
+    retract( game_won(_) ).
 
 
 
 % Чтение файла с расстановкой кораблей для игрока
 readFile(Board) :-
-    open('C:/board.txt', read, Stream),
+    open('C:/Users/kosty/OneDrive/Документы/GitHub/Battleship/board.txt', read, Stream),
     readStream(Stream, Board).
+
+readShips(Board) :-
+    open('C:/Users/kosty/OneDrive/Документы/GitHub/Battleship/ships.txt', read, Stream),
+    readStream(Stream, Board).
+
 
 % Открываем поток для чтения файла
 readStream(Stream, Result) :-
@@ -69,19 +78,16 @@ readStream(Stream, Result) :-
 read_validate_move :-
     repeat,
     write('Сделайте ваш ход! fire(Row, Col).'), nl,
-    ((catch(read(fire(Row, Col)), error(_, _), false), % ловим ошибки при вводе
+    catch(read(fire(Row, Col)), error(_, _), false), % ловим ошибки при вводе
         validate(Row, Col), % Проверяем правильность аргументов
         assert( current_move(Row, Col) ) % Добавляем в базу ход
-      ) -> true;
-    (write('Некорректный ввод хода. \nВведите любую клавишу, чтобы продолжить либо \'close\' для выхода'), nl,
-     (read(A), A == 'close' ->break; fail)
-    )).
+       -> !,true;fail.
 
 % Проверяет, являются ли заданные значения строки и столбца законным ходом для игрока
 validate(Row, Col) :-
     number(Row), number(Col), % Проверяем, что это цифры
     turn(player), % Ход игрока существует
-    board(computer_primary, ComputerBoard), % Проверяем, что такое поле существует
+    board(computer_primary, ComputerBoard), % Получаем доступ к полю
     canAttempt(coord(Row, Col), ComputerBoard).
 
 % Проверяет, являются ли заданные значения строки и столбца законным ходом для игрока
@@ -98,8 +104,6 @@ validate(Row, Col) :-
     2 - Пустая, с попаданием
     3 - Занятая, с попадание
     4 - Зона вокруг корабля, без попадания
-    5 - Зона вокруг корабля, с попаданием
-
 */
 
 attempted(2).
@@ -161,7 +165,7 @@ current_move(Index) :- current_move(Row, Col), toIndex(coord(Row, Col), Index).
 % ------------------------------------------------------------------------
 
 
-% Ход игрока; Если выбранная клетка пустая (имеет значение 0),
+% Ход игрока; Если выбранная клетка пустая (имеет значение 0 или 4),
 % обновляет доску computer_primary и доску player_tracking до промаха
 % (присваиваем значение 2)
 update_boards :-
@@ -175,7 +179,7 @@ update_boards :-
     board(computer_primary,ComputerBoard),
 
     % Проверяем, что в данном поле индексе имеет значение 0(0 - Пустая, без попадания)
-    nth0(Index,ComputerBoard,0),
+    (nth0(Index,ComputerBoard,0);nth0(Index,ComputerBoard,4)),
 
     % Получаем доступ к полю player_tracking
     board(player_tracking,PlayerTrackingBoard),
@@ -214,11 +218,15 @@ update_boards :-
     % Проверяем, что в данном поле индексе имеет значение 1(1 - Занятая, без попадания)
     nth0(Index,ComputerBoard,1),
 
-    %  Получаем доступ к полю player_trackin
+    %  Получаем доступ к полю player_tracking
     board(player_tracking,PlayerTrackingBoard),
 
     % Проверяем, что в данном поле индексе имеет значение 0(0 - Пустая, без попадания)
     nth0(Index,PlayerTrackingBoard,0),
+
+    % Обновляем список попаданий
+    hit_ships(player,HitShips),
+    append(HitShips,[Index],NewHitShips),
 
     % Меняем значение в данных индексах на 3(попадание)
     replaceNth(ComputerBoard,Index,3,NewComputerBoard),
@@ -231,9 +239,15 @@ update_boards :-
     retract(board(computer_primary,_)),
     retract(board(player_tracking,_)),
 
+    % Удаляем предыдущие список попаданий
+    retract(hit_ships(player,_)),
+
     % Добавляем новые поля в базу
     assert(board(computer_primary,NewComputerBoard)),
-    assert(board(player_tracking,NewPlayerTrackingBoard)).
+    assert(board(player_tracking,NewPlayerTrackingBoard)),
+
+    % Добавляем в базу новый список попаданий
+    assert(hit_ships(player,NewHitShips)).
 
 % Ход компьютера; Если выбранная клетка пустая (имеет значение 0),
 % обновляет доску computer_primary и доску player_tracking до промаха
@@ -249,7 +263,7 @@ update_boards :-
     board(player_primary,PlayerBoard),
 
     % Проверяем, что в данном поле индексе имеет значение 0(0 - Пустая, без попадания)
-    nth0(Index,PlayerBoard,0),
+    (nth0(Index,PlayerBoard,0);nth0(Index,PlayerBoard,4)),
 
     % Получаем доступ к полю computer_tracking
     board(computer_tracking,ComputerTrackingBoard),
@@ -294,6 +308,10 @@ update_boards :-
     % Проверяем, что в данном поле индексе имеет значение 0(0 - Пустая, без попадания)
     nth0(Index,ComputerTrackingBoard,0),
 
+    % Обновляем список попаданий
+    hit_ships(computer,HitShips),
+    append(HitShips,[Index],NewHitShips),
+
     % Меняем значение в данных индексах на 3(попадание)
     replaceNth(PlayerBoard,Index,3,NewPlayerBoard),
     replaceNth(ComputerTrackingBoard,Index,3,NewComputerTrackingBoard),
@@ -305,12 +323,16 @@ update_boards :-
     retract( board(player_primary,_) ),
     retract( board(computer_tracking,_) ),
 
+    % Удаляем предыдущие список попаданий
+    retract(hit_ships(computer,_)),
+
     % Добавляем новые поля в базу
     assert( board(player_primary,NewPlayerBoard) ),
-    assert( board(computer_tracking,NewComputerTrackingBoard) ).
+    assert( board(computer_tracking,NewComputerTrackingBoard) ),
 
-% Если мы попытаемся обновить доски, но у нас нет текущего хода, подтвердите ход еще раз
-update_boards :- turn(player), \+ current_move(_), read_validate_move.
+    % Добавляем в базу новый список попаданий
+    assert(hit_ships(computer,NewHitShips)).
+
 
 
 % ----------------------------------------------------------------------------
@@ -336,9 +358,9 @@ check_win :-
     board(computer_primary,Board),
 
     % Проверка, что все корабли были поражены
-    spacesOccupied(Board, 6, 3),
+    spacesOccupied(Board, 20, 3),
 
-    assert( game_won ), % Добавляем в базу выигрыш
+    assert( game_won(player) ), % Добавляем в базу выигрыш
     !.
 
 check_win :-
@@ -349,7 +371,7 @@ check_win :-
     board(computer_primary,Board),
 
     % Проверка, что не все корабли были поражены
-    \+ spacesOccupied(Board, 6, 3),
+    \+ spacesOccupied(Board, 20, 3),
     !.
 
 
@@ -362,9 +384,9 @@ check_win :-
     board(player_primary,Board),
 
     % Проверка, что все корабли были поражены
-    spacesOccupied(Board, 6, 3),
+    spacesOccupied(Board, 20, 3),
 
-    assert( game_won ), % Добавляем в базу выигрыш
+    assert( game_won(computer) ), % Добавляем в базу выигрыш
     !.
 
 check_win :-
@@ -375,22 +397,32 @@ check_win :-
     board(player_primary,Board),
 
     % Проверка, что не все корабли были поражены
-    \+ spacesOccupied(Board, 6, 3),
+    \+ spacesOccupied(Board, 20, 3),
     !.
 
 
 % -------------------------------------------------------------------
+
 % Действие, если игрок проиграл
 player_turn :-
-    game_won,
+    game_won(player),
     nl,
     write('Поздравляем, вы выиграли!'),
     nl.
 
+
 % Действие для игрока по умолчанию
 player_turn :-
-    \+ game_won,
+    \+ game_won(player),
     write('Ваш ход!'), nl,
+
+    show_player, % Вывод полей
+    message(Mes), % Получаем сообщение
+
+    write(Mes),
+
+    retract(message(_)),
+    assert(message('')),
 
     % Добавляем в базу, что это ход игрока
     assert( turn(player) ),
@@ -404,7 +436,6 @@ player_turn :-
     % Отображение результатов этого хода
     turn_result,
 
-
     % Проверка есть ли выигрыш
     check_win,
 
@@ -415,19 +446,24 @@ player_turn :-
     retract( current_move(_,_) ),
 
     % Если попали то выполняется ход у игрока, иначе ход переходит компьютеру
-    ( hit_attempt(hit)->player_turn,!;computer_turn,!),!.
+    !,computer_turn.
+
+
+
+
 
 % ----------------------------------------------------------------------------------
-% Действие, если компьютер проиграл
+
+% Действие, если компьютер выиграл
 computer_turn :-
-    game_won,
+    game_won(computer),
     nl,
     write('Я сожалею, но вы проиграли('),
-    nl.
+    nl,!.
 
 % Действие для компьютера по умолчанию
 computer_turn :-
-    \+ game_won,
+    \+ game_won(computer),
     write('\nХод врага.'), nl,
 
     % Добавляем в базу, что это ход компьютера
@@ -440,7 +476,6 @@ computer_turn :-
     update_boards,
 
     % Отображаем результаты данного хода
-    show_player,
     turn_result,
 
     % Проверка есть ли выигрыш
@@ -456,7 +491,12 @@ computer_turn :-
     retract( current_move(_,_) ),
 
     % Если попали то выполняется ход у игрока, иначе ход переходит компьютеру
-    ( hit_attempt(hit)->computer_turn,!;player_turn,!),!.
+    !,player_turn.
+
+
+
+
+
 
 
 
@@ -514,56 +554,287 @@ toDisplay(4, '--').
 % -------------------------------------------------------------
 
 
-
 % Показывает игроку результат текущего хода
 turn_result :-
     hit_attempt(hit), % Если было попадание
     turn(player), % Ход игрока
+
+    % Определяем был ли сбит корабль у игрока
+    delete_ship_for_player,!;
+    hit_attempt(hit), % Если было попадание
+    turn(player), % Ход игрока
+
     current_move(Row, Col), % Текущий ход
-    write('\n Вы попали в корабль с координатами ('),
-    write(Row), write(', '), write(Col),
-    write(')!\n'),
-    sleep(2). % Задержка хода
+
+    message(Mes),
+
+    string_concat('\nВы попали в корабль с координатами (',Row,R0),
+    string_concat(Mes, R0, R1),
+    string_concat(R1,', ',R2),
+    string_concat(R2,Col,R3),
+    string_concat(R3,')!\n',R4),
+    retract(message(_)),
+    assert(message(R4)),
+    !.
+
 
 turn_result :-
     hit_attempt(miss), % Если был промах
     turn(player), % Ход игрока
-    write('Вы промазали'),
-    sleep(2).
+
+    message(Mes),
+
+    string_concat(Mes,'Вы промазали',R0),
+    retract(message(_)),
+    assert(message(R0)),
+    !.
+
+
 
 turn_result :-
     hit_attempt(hit), % Если было попадание
     turn(computer), % Ход компьютера
+
+    % Определяем был ли сбит корабль у компьютера
+    delete_ship_for_computer,!;
+
+    hit_attempt(hit), % Если было попадание
+    turn(computer), % Ход компьютера
+
+    % Корабль не был уничтожен
+    (   retract(destroy_ship(_)),current_move(Row, Col), % Текущий ход
+
+    message(Mes),
+
+    string_concat('\n Враг попал в ваш корабль с координатами (',Row,R0),
+    string_concat(Mes, R0, R1),
+    string_concat(R1,', ',R2),
+    string_concat(R2,Col,R3),
+    string_concat(R3,')!\n',R4),
+    retract(message(_)),
+    assert(message(R4)),
+
+    !;
+
     current_move(Row, Col), % Текущий ход
-    write('\n Враг попал в ваш корабль с координатами ('),
-    write(Row), write(', '), write(Col),
-    write(')!\n'),
-    sleep(1).
+
+    message(Mes),
+
+    string_concat('\n Враг попал в ваш корабль с координатами (',Row,R0),
+    string_concat(Mes, R0, R1),
+    string_concat(R1,', ',R2),
+    string_concat(R2,Col,R3),
+    string_concat(R3,')!\n',R4),
+    retract(message(_)),
+    assert(message(R4)),
+
+    !).
 
 turn_result :-
     hit_attempt(miss), % Если был промах
     turn(computer), % Ход компьютера
     current_move(Row, Col), % Текущий ход
-    write('\nВраг промазал, попав в('),
-    write(Row), write(', '), write(Col),
-    write(')!\n'),
-    sleep(1).
+
+    message(Mes),
+
+    string_concat('\nВраг промазал, попав в(',Row,R0),
+    string_concat(Mes, R0, R1),
+    string_concat(R1,', ',R2),
+    string_concat(R2,Col,R3),
+    string_concat(R3,')!\n',R4),
+    retract(message(_)),
+    assert(message(R4)),
+
+    !.
+
+
+delete_ship_for_player:-
+     % Получаем все выстрелы игрока
+    hit_ships(player,HitPlayer),
+
+    % Получаем список кораблей врага
+    ships(computer,ShipsComputer),
+
+    % Получаем доступ к полю computer_primary
+    board(computer_primary,ComputerBoard),
+
+    % Получаем доступ к полю player_tracking
+    board(player_tracking,PlayerTrackingBoard),
+
+    % Находим убитый корабль
+    all_permutation(HitPlayer,ShipsComputer,1,Ship),
+
+    % Если одиночный корабль
+    nonvar(Ship),
+
+
+    % Удаляем корабль из списка
+    delete(ShipsComputer,Ship,NewShipsComputer),
+
+    % Удаляем попадание
+    delete_list(HitPlayer, Ship, NewHitPlayer),
+
+    % Находим вокруг корабля клетки
+    findAdjacents_d_all_r(Ship,AdjacentsShip),
+
+
+    % Заменяем их
+    replaceNth_list(ComputerBoard,2,AdjacentsShip,NewComputerBoard),
+    replaceNth_list(PlayerTrackingBoard,2,AdjacentsShip,NewPlayerTrackingBoard),
+
+    % Удаляем предыдущие состояние полей
+    retract(board(computer_primary,_)),
+    retract(board(player_tracking,_)),
+
+    % Удаляем предыдущие список попаданий
+    retract(hit_ships(player,_)),
+
+    % Удаляем предыдущие список кораблей
+    retract(ships(computer,_)),
+
+    % Добавляем новые поля в базу
+    assert(board(computer_primary,NewComputerBoard)),
+    assert(board(player_tracking,NewPlayerTrackingBoard)),
+
+    % Добавляем в базу новый список попаданий
+    assert(hit_ships(player,NewHitPlayer)),
+
+    % Добавляем в базу новый список кораблей
+    assert(ships(computer,NewShipsComputer)),
+
+    message(Mes),
+
+    string_concat(Mes,'\nВы потопили корабль врага!\n',R0),
+
+    retract(message(_)),
+    assert(message(R0)),
+
+    !.
+
+delete_ship_for_computer:-
+     % Получаем все выстрелы компьютера
+    hit_ships(computer,HitComputer),
+
+    % Получаем список кораблей врага
+    ships(player,ShipsPlayer),
+
+    % Получаем доступ к полю player_primary
+    board(player_primary,PlayerBoard),
+
+    % Получаем доступ к полю computer_tracking
+    board(computer_tracking,ComputerTrackingBoard),
+
+    % Находим убитый корабль
+    all_permutation(HitComputer,ShipsPlayer,1,Ship),
+
+    % Если одиночный корабль
+    nonvar(Ship),
+
+
+    % Удаляем корабль из списка
+    delete(ShipsPlayer,Ship,NewShipsPlayer),
+
+    % Удаляем попадание
+    delete_list(HitComputer, Ship, NewHitComputer),
+
+    % Находим вокруг корабля клетки
+    findAdjacents_d_all_r(Ship,AdjacentsShip),
+
+
+    % Заменяем их
+    replaceNth_list(PlayerBoard,2,AdjacentsShip,NewPlayerBoard),
+    replaceNth_list(ComputerTrackingBoard,2,AdjacentsShip,NewComputerTrackingBoard),
+
+    % Удаляем предыдущие состояние полей
+    retract(board(player_primary,_)),
+    retract(board(computer_tracking,_)),
+
+    % Удаляем предыдущие список попаданий
+    retract(hit_ships(computer,_)),
+
+    % Удаляем предыдущие список кораблей
+    retract(ships(player,_)),
+
+    % Добавляем новые поля в базу
+    assert(board(player_primary,NewPlayerBoard)),
+    assert(board(computer_tracking,NewComputerTrackingBoard)),
+
+    % Добавляем в базу новый список попаданий
+    assert(hit_ships(computer,NewHitComputer)),
+
+    % Добавляем в базу новый список кораблей
+    assert(ships(player,NewShipsPlayer)),
+
+    % Добавляем, что был уничтожен корабль
+    assert(destroy_ship(1)),
+
+
+    message(Mes),
+
+    string_concat(Mes,'\nВраг потопил ваш корабль!\n',R0),
+
+    retract(message(_)),
+    assert(message(R0)),
+
+    !.
+
+% Удаление всех попаданий из списка
+
+delete_list(R,[],R):-!.
+delete_list(HitPlayer,[H|T],NewHitPlayer):-
+    delete(HitPlayer,H,HitPlayer1),
+    delete_list(HitPlayer1,T,NewHitPlayer).
+
+
+% Находит корабль
+all_permutation(_,_,5,_):-!.
+all_permutation(ListHit,ListShips,Num,Ship):-
+    permition_ship(ListHit,ListShips,Num,Ship),!;
+    !,Num1 is Num + 1,
+    all_permutation(ListHit,ListShips,Num1,Ship).
+
+
+permition_ship(ListHit,ListShips,Num,Ship):-permutation(ListHit,Num,Ship),member(Ship,ListShips),!.
+
+% Размещения
+permutation(_List, 0, []).
+permutation(List, PermutationLength, [Head|PermutationTail]):-
+  member(Head, List),
+  delete(List, Head, ListTail),
+  PermutationTailLength is PermutationLength - 1,
+  permutation(ListTail, PermutationTailLength, PermutationTail).
+
+% Находим все клетки вокруг корабля
+findAdjacents_d_all_r(Ship,Result):-findAdjacents_d_all0(Ship,[],R),set(R,R0),findAdjacents_d_all(Ship,R0,Result).
+
+findAdjacents_d_all([],Result,Result):-!.
+findAdjacents_d_all([H|T],Iter,Result):-
+    del(H,Iter,Iter1),
+    findAdjacents_d_all(T,Iter1,Result).
+
+
+findAdjacents_d_all0([],Result,Result):-!.
+findAdjacents_d_all0([H|T],Iter,Result):-
+    findAdjacents_d(H,List),
+    append(Iter,List,Iter1),
+    findAdjacents_d_all0(T,Iter1,Result).
+
 
 
 
 % ------------------------------------------------------------------------
 
 % Генерируем случайное поле для компьютера
-% generateComputerBoard(-B) - возвращает в B сгенерированное поле
-generateComputerBoard(-B) :-
+% generateComputerBoard(B) - возвращает в B сгенерированное поле
+generateComputerBoard(B) :-
     repeat, % Повторяем до тех пор пока не встретим fail
     createEmptyBoard(BA), % Создание списка нулей, размерности 100
 
     placeShip_4(BA,B0,Ship_4), % Создание корабля 4 на 1
-    placeShips_3(2,B0,B1,[],Ship_3),
-    placeShips_2(3,B1,B2,[],Ship_2),
-    placeShips_1(4,B2,B,[],Ship_1),show_board(B),!.
-    % assert(ships(ships_enemy,[Ship_4,Ship_3,Ship_2,Ship_1])),!.
+    placeShips_3(2,B0,B1,Ship_4,Ship_3), % Создание 2 кораблей 3 на 1
+    placeShips_2(3,B1,B2,Ship_3,Ship_2), %
+    placeShips_1(4,B2,B,Ship_2,Ship),!,
+    assert(ships(computer,Ship)).
     % (validateBoard(B) -> true, ! ; fail). % Проверяем правильна ли составлена доска
 
 
@@ -602,7 +873,7 @@ placeShip_4(B,BR,Ship):-
     del(P_3,List9,List10),
     del(P_4,List10,List11),
     replaceNth_list(B3,4,List11,BR), % Делаем область вокруг них
-    Ship = [P_1,P_2,P_3,P_4],!
+    Ship = [[P_1,P_2,P_3,P_4]],!
     ;fail.
 
 
@@ -969,12 +1240,22 @@ listOfZeros(N,[0|R]) :- N1 is N-1, N1 >= 0, listOfZeros(N1,R).
 
 
 % Генерация хода компьютера
+% Ход, если включен режим уничтожения
 computer_move :-
     % Ход компьютера
     turn(computer),
 
-    % Проверяем, если включен destroy режим
-    computer_mode(destroy(Index)),
+    % Получаем индексы уничтожаемого корабля
+    computer_mode(destroy(List_Index)),
+
+
+    length(List_Index,Length),
+
+    % Если это одиночный попадание
+    Length == 1,
+
+    % Достаем из списка элемент
+    member(Index, List_Index),
 
     % Получаем все смежные клетки
     findAdjacents(Index, Neighbours),
@@ -985,13 +1266,71 @@ computer_move :-
 
     canAttemptAdjacents(Neighbours, TrackingBoard, ValidNeighbours), % Находим подходящие смежные вершины
     length(ValidNeighbours,L), % Длина полученного списка
-    random_number(0,L,Num), % Выбираем случайную из полученных клеток
+
+    % Нумерация начинается с 0
+    L1 is L-1,
+
+    random_number(0,L1,Num), % Выбираем случайную из полученных клеток
 
     nth0(Num, ValidNeighbours, Value), % Получаем индекс нашей клетки
     toCoord(Value, coord(Row, Col)), % Переводим в координаты
+    assert( current_move(Row, Col) ); % Добавляем в базу
+
+
+    % Ход компьютера
+    turn(computer),
+
+    % Получаем индексы уничтожаемого корабля
+    computer_mode(destroy(List_Index)),
+
+    % Сортируем список попаданий
+    sort(List_Index, Sort_List_Index),
+
+    length(Sort_List_Index,Length),
+
+    % Если это двойное попадание
+    Length == 2,
+
+    % Получаем два элемента из списка
+    [P1,P2] = Sort_List_Index,
+
+    % Получаем поле отслеживания у компьютера
+    board(computer_tracking, TrackingBoard),
+
+    % Генерируем новую точку
+    next_point_4(TrackingBoard,P1,P2,P3),
+
+    toCoord(P3, coord(Row, Col)), % Переводим в координаты
+    assert( current_move(Row, Col) ); % Добавляем в базу
+
+    % Ход компьютера
+    turn(computer),
+
+    % Получаем индексы уничтожаемого корабля
+    computer_mode(destroy(List_Index)),
+
+    % Сортируем список попаданий
+    sort(List_Index, Sort_List_Index),
+
+    length(Sort_List_Index,Length),
+
+    % Если это тройное попадание
+    Length == 3,
+
+    % Получаем два элемента из списка
+    [P1,_,P3] = Sort_List_Index,
+
+    % Получаем поле отслеживания у компьютера
+    board(computer_tracking, TrackingBoard),
+
+    % Генерируем новую точку
+    next_point_4(TrackingBoard,P1,P3,P4),
+
+    toCoord(P4, coord(Row, Col)), % Переводим в координаты
     assert( current_move(Row, Col) ). % Добавляем в базу
 
 
+% Ход если режим охоты
 computer_move :-
     % Ход компьютера
     turn(computer),
@@ -1006,12 +1345,16 @@ computer_move :-
 % выстрелов
     calculate(TrackingBoard, L),
 
+    length(L,Len),
+
+    F is div(Len,2),
+
     % Сортируем от больше к меньшему по второму элементу
     sort(2, @>=, L, SortedList),
 
     % Index - список, состоящий из количества клеток рядом с которыми нет выстрелов
     % Taken - количество
-    take(SortedList, 10, Index, Taken),
+    take(SortedList, F, Index, Taken),
 
     IndexTaken is Taken - 1,
 
@@ -1099,13 +1442,13 @@ calculateAdjacents([], _, 0):-!. % Если список пустой
 % Num - количество
 % Index -
 % X
-take(Spaces, Num, L, X) :- take(Spaces, Num, [], L, X).
+take(Spaces, Num, L, X) :- take(Spaces, Num, [], L, X),!.
 
-take(_, Num, L, L, 0) :- Num < 1. % Если количество меньше 1
+take(_, Num, L, L, 0) :- Num < 1,!. % Если количество меньше 1
 take([(Index, _)|T], Num, L1, [Index|L2], X1) :-
     Num1 is Num - 1, % Уменьшаем
     take(T, Num1, L1, L2, X),
-    X1 is X + 1.
+    X1 is X + 1,!.
 
 
 %-------------------------------------------------------------------
@@ -1116,7 +1459,7 @@ react :-
     % Ход компьютера
     turn(computer),
 
-    % Добавляем в базу режим атаки
+    % Проверяем что идет режим атаки
     computer_mode(destroy(_)),
 
     % Обновляем выстрел как промах
@@ -1128,20 +1471,51 @@ react :-
     % Ход компьютера
     turn(computer),
 
-    % Добавляем в базу режим атаки
+    % Проверяем что идет режим атаки
     computer_mode(destroy(_)),
 
-    % Обновляем выстрел как попадание
+    % Проверяем, что мы попали
     hit_attempt(hit),
 
+    % Мы уничтожили корабль
+    destroy_ship(1),
+
+    % Удаляем информацию, что уничтожили корабль
+    retract( destroy_ship(1)),
+
     % Убираем все режимы
-    retract( computer_mode(_) ),
+    clean_computer_mode,
+
 
     % Добавляем режим поиска
     assert( computer_mode(hunt) ),
     !
     .
 
+react :-
+    % Ход компьютера
+    turn(computer),
+
+    % Проверяем что идет режим атаки
+    computer_mode(destroy(List)),
+
+    % Проверяем, что мы попали
+    hit_attempt(hit),
+
+    % Получаем текущий ход
+    current_move(Index),
+
+    % Добавляем выстрел
+    append(List,[Index], New_List),
+
+    % Убираем все режимы
+    clean_computer_mode,
+
+    % Добавляем режим поиска
+    assert( computer_mode(destroy(New_List)) ),
+    !
+    .
+
 
 react :-
     % Ход компьютера
@@ -1165,20 +1539,40 @@ react :-
     % Обновляем выстрел как попадание
     hit_attempt(hit),
 
+    % Мы уничтожили корабль
+    destroy_ship(1),
+
+    % Удаляем информацию, что уничтожили корабль
+    retract( destroy_ship(1)),
+
     % Убираем все режимы
-    retract( computer_mode(_) ),
+    clean_computer_mode,
+
+    % Добавляем в базу режим уничтожения
+    assert( computer_mode(hunt)),
+    !
+    .
+
+react :-
+    % Ход компьютера
+    turn(computer),
+
+    % Проверяем, что режим поиска
+    computer_mode(hunt),
+
+    % Обновляем выстрел как попадание
+    hit_attempt(hit),
+
+    % Убираем все режимы
+    clean_computer_mode,
 
     % Получаем текущий индекс выстрела
     current_move(Index),
 
     % Добавляем в базу режим уничтожения
-    assert( computer_mode(destroy(Index)) ),
+    assert( computer_mode(destroy([Index])) ),
     !
     .
-
-
-
-
 
 
 
@@ -1194,6 +1588,9 @@ clean :-
     clean_current_move,
     clean_computer_mode,
     clean_ships,
+    clean_hit_ships,
+    clean_destroy_ship,
+    clean_message,
     !.
 
 clean_player_primary :- repeat, (retract( board(player_primary,_) ) -> false; true).
@@ -1204,7 +1601,10 @@ clean_turn :- repeat, (retract( turn(_) ) -> false; true).
 clean_attempt :- repeat, (retract( hit_attempt(_) ) -> false; true).
 clean_current_move :- repeat, (retract( current_move(_, _) ) -> false; true).
 clean_computer_mode :- repeat, (retract( computer_mode(_) ) -> false; true).
-clean_ships:-repeat, (retract( ships(_,_) ) -> false; true).
+clean_ships:- repeat, (retract( ships(_,_) ) -> false; true).
+clean_hit_ships:- repeat, (retract( hit_ships(_,_) ) -> false; true).
+clean_destroy_ship:- repeat, (retract( destroy_ship(_) ) -> false; true).
+clean_message:- repeat, (retract( message(_) ) -> false; true).
 
 % ---------------------------------------------------------------------------
 % Вспомогательные функции
