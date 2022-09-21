@@ -415,7 +415,7 @@ player_turn :-
 % Действие для игрока по умолчанию
 player_turn :-
     \+ game_won(player),
-    write('Ваш ход!'), nl,
+    write('\nВаш ход!'), nl,
 
     show_player, % Вывод полей
     message(Mes), % Получаем сообщение
@@ -429,7 +429,7 @@ player_turn :-
     assert( turn(player) ),
 
     % Извлекаем данные которые вводит пользователь
-    read_validate_move,
+    read_validate_move,!,
 
     % Обновляем поля при данном ходе
     update_boards,
@@ -447,7 +447,7 @@ player_turn :-
     retract( current_move(_,_) ),
 
     % Если попали то выполняется ход у игрока, иначе ход переходит компьютеру
-    !,computer_turn.
+    !,(hit_attempt(hit),player_turn,!;hit_attempt(miss),computer_turn,!).
 
 
 
@@ -492,7 +492,7 @@ computer_turn :-
     retract( current_move(_,_) ),
 
     % Если попали то выполняется ход у игрока, иначе ход переходит компьютеру
-    !,player_turn.
+    !,(hit_attempt(hit),computer_turn,!;hit_attempt(miss),player_turn,!).
 
 
 
