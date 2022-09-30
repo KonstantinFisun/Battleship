@@ -34,7 +34,6 @@ play_game :-
 
     % Генерация компьютерного поля
     generateComputerBoard(ComputerBoard), % Получаем поле компьютера
-    show_board(ComputerBoard),
     assert( board(computer_primary, ComputerBoard) ), % Добавление поля компьютера в базу
     assert( board(computer_tracking, Empty) ), % Добавление помеченное поле компьютера в базу
     assert( computer_mode(hunt) ), % Добавляем предикат
@@ -82,7 +81,7 @@ read_validate_move :-
         validate(Row, Col), % Проверяем правильность аргументов
         assert( current_move(Row, Col) ) % Добавляем в базу ход
        -> !,true;
-       ( write('Введите close для выхода'), read(A), A== 'close',!, false;fail )).
+       ( write('\nХод совпадает или некорректный!\nВведите close для выхода или любую клавишу для продолжения:'), read(A), A== 'close',!, false;fail )).
 
 % Проверяет, являются ли заданные значения строки и столбца законным ходом для игрока
 validate(Row, Col) :-
