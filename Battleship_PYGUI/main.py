@@ -1,98 +1,146 @@
 from __future__ import unicode_literals
-
+import sys
 from pyswip import Prolog
-
-prolog = Prolog()
-
-prolog.consult("1.pl")
-
-# Запуск игры
-run = list(prolog.query("run"))
-
-# Игрок начинает первым
-move = 1
-
-show_player = list(prolog.query("show_player"))
-
-# Вывод информации о текущем состоянии полей
-player_tracking = list(prolog.query("board(player_tracking, PlayerTracking)"))
-player_primary = list(prolog.query("board(player_primary, PlayerBoard)"))
-
-player_turn = list(prolog.query("player_turn"))
-
-# Получаем значение матриц
-# print(player_tracking[0]["PlayerTracking"]) # Поле противника
-# print(player_primary[0]["PlayerBoard"]) # Поле игрока
+import bat
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import Qt
 
 
-
-while(True):
-
-    turn = list(prolog.query("turn(player)")) # Получаем ход игрока
-    hit = list(prolog.query("hit_attempt(hit)")) # Получаем попадание
-    # Проверка, что ход игрока
-    if len(turn) > 0 or move == 1:
-        move = 0
-        print("Ход игрока")
+class Battleship(bat.Ui_MainWindow):
 
 
-        # Показываем ход
-        show_player = list(prolog.query("show_player"))
+    def setupUi(self, MainWindow):
+        # Установка формы
+        super().setupUi(MainWindow)
 
-        # Показываем сообщение
-        show_message = list(prolog.query("message(Mes),write(Mes)"))
+        # Подключаем пролог
+        prolog = Prolog()
 
-        print(show_message[0]["Mes"].decode("UTF-8"))
+        # Файл с игрой
+        # prolog.consult("1.pl")
 
-        # Удаляем ход игрока
-        delete_turn = list(prolog.query("retract(turn(player))"))
+        self.board_player_primary = list()
+        self.board_player_tracking = list()
 
-        # Проверка что игрок попал
-        if (len(hit) > 0):
-            player_turn = list(prolog.query("player_turn"))
-        # Если игрок промазал
-        else:
-            computer_turn = list(prolog.query("computer_turn"))
+        # Получаем значения кнопок поля
+        for a in dir(self):
+            if a.startswith('p'):
+                self.board_player_primary.append(a)
 
-    # Ход компьютера
-    else:
-        print("Ход противника")
+        for a in dir(self):
+            if a.startswith('с'):
+                self.board_player_tracking.append(a)
 
-        # Удаляем ход противника
-        delete_turn = list(prolog.query("retract(turn(computer))"))
+        # Добавляем функционал
+        self.add_functions()
 
-        # Проверка что компьютер попал
-        if (len(hit) > 0):
-            player_turn = list(prolog.query("player_turn"))
+    # Обработчик событий
+    def add_functions(self):
+        self.Start.clicked.connect(self.start_game)
 
-        # Если компьютер промазал
-        else:
-            computer_turn = list(prolog.query("computer_turn"))
+    # Старт игры
+    def start_game(self):
+        # Запуск игры
+        print("lol")
+
+
+
+        # getattr(self, self.board_player_primary[0]).setStyleSheet("background-color: rgb(0, 0, 0);")
+        # .setStyleSheet("background-color: rgb(0, 0, 0);\n"
+        #                                                           "border: 1px solid black;")
+
+        # Игрок начинает первым
+        move = 1
+
+    # Обновление полей
+    def update_board(self):
+        # Вывод информации о текущем состоянии полей
+        # player_tracking = list(prolog.query("board(player_tracking, PlayerTracking)"))
+        # player_primary = list(prolog.query("board(player_primary, PlayerBoard)"))
+
+        print(self.board_player_primary)
+        # print(self.board_player_tracking)
 
 
 
 
+def main():
+    app = QtWidgets.QApplication(sys.argv)
+    MainWindow = QtWidgets.QMainWindow()
+    ui = Battleship()
+    ui.setupUi(MainWindow)
+    # ui.update_board()
+    MainWindow.show()
+    sys.exit(app.exec_())
 
-    # Вывод информации о текущем состоянии полей
+    # # Запуск игры
+    # run = list(prolog.query("run"))
+    #
+    # # Игрок начинает первым
+    # move = 1
+    #
+    # show_player = list(prolog.query("show_player"))
+    #
+    # # Вывод информации о текущем состоянии полей
     # player_tracking = list(prolog.query("board(player_tracking, PlayerTracking)"))
     # player_primary = list(prolog.query("board(player_primary, PlayerBoard)"))
+    #
+    # player_turn = list(prolog.query("player_turn"))
+    #
+    # # Получаем значение матриц
+    # # print(player_tracking[0]["PlayerTracking"]) # Поле противника
+    # # print(player_primary[0]["PlayerBoard"]) # Поле игрока
+    #
+    # while (True):
+    #
+    #     turn = list(prolog.query("turn(player)"))  # Получаем ход игрока
+    #     hit = list(prolog.query("hit_attempt(hit)"))  # Получаем попадание
+    #     # Проверка, что ход игрока
+    #     if len(turn) > 0 or move == 1:
+    #         move = 0
+    #         print("Ход игрока")
+    #
+    #         # Показываем ход
+    #         show_player = list(prolog.query("show_player"))
+    #
+    #         # Показываем сообщение
+    #         show_message = list(prolog.query("message(Mes),write(Mes)"))
+    #
+    #         print(show_message[0]["Mes"].decode("UTF-8"))
+    #
+    #         # Удаляем ход игрока
+    #         delete_turn = list(prolog.query("retract(turn(player))"))
+    #
+    #         # Проверка что игрок попал
+    #         if (len(hit) > 0):
+    #             player_turn = list(prolog.query("player_turn"))
+    #         # Если игрок промазал
+    #         else:
+    #             computer_turn = list(prolog.query("computer_turn"))
+    #
+    #     # Ход компьютера
+    #     else:
+    #         print("Ход противника")
+    #
+    #         # Удаляем ход противника
+    #         delete_turn = list(prolog.query("retract(turn(computer))"))
+    #
+    #         # Проверка что компьютер попал
+    #         if (len(hit) > 0):
+    #             player_turn = list(prolog.query("player_turn"))
+    #
+    #         # Если компьютер промазал
+    #         else:
+    #             computer_turn = list(prolog.query("computer_turn"))
+    #
+    #     # Вывод информации о текущем состоянии полей
+    #     # player_tracking = list(prolog.query("board(player_tracking, PlayerTracking)"))
+    #     # player_primary = list(prolog.query("board(player_primary, PlayerBoard)"))
+    #
+    #     # Получаем значение матриц
+    #     # print(player_tracking[0]["PlayerTracking"])  # Поле противника
+    #     # print(player_primary[0]["PlayerBoard"])  # Поле игрока
 
-    # Получаем значение матриц
-    # print(player_tracking[0]["PlayerTracking"])  # Поле противника
-    # print(player_primary[0]["PlayerBoard"])  # Поле игрока
 
-
-
-
-# Вызов
-# c = list(prolog.query("run"))
-# Основной цикл программы
-# while(c):
-#
-#     # r = list(prolog.query(board(computer_primary,R)))
-#     print("1")
-#     # print(r)
-#     print("2")
-#
-#     c = list(prolog.query(input()))
-
+if __name__ == "__main__":
+    main()
