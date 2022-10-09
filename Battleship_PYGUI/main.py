@@ -14,10 +14,12 @@ class Battleship(bat.Ui_MainWindow):
         super().setupUi(MainWindow)
 
         # Подключаем пролог
-        prolog = Prolog()
+        self.prolog = Prolog()
 
         # Файл с игрой
-        # prolog.consult("1.pl")
+        self.prolog.consult("prototype_game.pl")
+
+
 
         # Создаем списки с объектами
         self.board_player_primary = list()
@@ -79,13 +81,34 @@ class Battleship(bat.Ui_MainWindow):
     def manually_board(self):
         print("Вручную")
 
-    # Расставить корабли вручную
+    # Расставить корабли случайно
     def accidentally_board(self):
+        # Выполняем запрос к прологу для генерации поля
+        generateBoard = list(self.prolog.query("generateComputerBoard(Board,Ship)"))
+
+        # Обновляем поле игрока
+        self.update_solo_board(generateBoard[0]["Board"])
 
 
 
 
-    # Обновление полей
+    # Обновление одного поля
+    def update_solo_board(self, board):
+
+        for i in range(len(board)):
+            # Если корабль
+            if board[i] == 1:
+                self.board_player_primary[i].setStyleSheet("background-color: rgb(255, 255, 255);\n"
+                                                           "border: 4px solid blue;")
+            # Область вокруг корабля
+            if board[i] == 4:
+                self.board_player_primary[i].setStyleSheet("background-color: rgb(255, 255, 255);")
+            # Пустая клетка
+            if board[i] == 0:
+                self.board_player_primary[i].setStyleSheet("background-color: rgb(255, 255, 255);")
+
+
+    # Обновление двух полей
     def update_board(self):
         # Вывод информации о текущем состоянии полей
         # player_tracking = list(prolog.query("board(player_tracking, PlayerTracking)"))
@@ -102,7 +125,6 @@ def main():
     MainWindow = QtWidgets.QMainWindow()
     ui = Battleship()
     ui.setupUi(MainWindow)
-    # ui.update_board()
     MainWindow.show()
     sys.exit(app.exec_())
 
