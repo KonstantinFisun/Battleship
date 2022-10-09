@@ -964,7 +964,8 @@ class Ui_MainWindow(object):
         self.messageBox = QtWidgets.QTextEdit(self.Centralwidget)
         self.messageBox.setGeometry(QtCore.QRect(730, 90, 311, 441))
         self.messageBox.setStyleSheet("background-color: rgb(255, 255, 255);\n"
-"color: rgb(64, 65, 66);")
+"color: rgb(64, 65, 66);\n"
+                                      "font-size:18px;")
         self.messageBox.setObjectName("messageBox")
         self.p62 = QtWidgets.QPushButton(self.Centralwidget)
         self.p62.setGeometry(QtCore.QRect(80, 270, 30, 30))
