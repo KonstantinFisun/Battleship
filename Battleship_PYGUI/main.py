@@ -19,31 +19,46 @@ class Battleship(bat.Ui_MainWindow):
         # Файл с игрой
         # prolog.consult("1.pl")
 
+        # Создаем списки с объектами
         self.board_player_primary = list()
         self.board_player_tracking = list()
 
-        # Получаем значения кнопок поля
+        # Получаем ссылки на поля игрока
         for a in dir(self):
             if a.startswith('p'):
-                self.board_player_primary.append(a)
+                self.board_player_primary.append(getattr(self, a))
 
+        # Получаем ссылки на поля соперника
         for a in dir(self):
-            if a.startswith('с'):
-                self.board_player_tracking.append(a)
+            if a.startswith('c'):
+                self.board_player_tracking.append(getattr(self, a))
 
         # Добавляем функционал
         self.add_functions()
 
     # Обработчик событий
     def add_functions(self):
+        # Кнопка 'Начать игру'
         self.Start.clicked.connect(self.start_game)
+
+        # Кнопка 'Перезапустить'
+        self.Reset.clicked.connect(self.reset_game)
+
+        # Кнопка 'Сдаться'
+        self.GiveUp.clicked.connect(self.give_up)
+
+        # Кнопка 'Расставить корабли вручную'
+        self.Manually.clicked.connect(self.manually_board)
+
+        # Кнопка 'Расставить корабли случайно'
+        self.Accidentally.clicked.connect(self.accidentally_board)
 
     # Старт игры
     def start_game(self):
         # Запуск игры
-        print("lol")
 
-
+        print(self.board_player_primary)
+        print(self.board_player_tracking)
 
         # getattr(self, self.board_player_primary[0]).setStyleSheet("background-color: rgb(0, 0, 0);")
         # .setStyleSheet("background-color: rgb(0, 0, 0);\n"
@@ -51,6 +66,24 @@ class Battleship(bat.Ui_MainWindow):
 
         # Игрок начинает первым
         move = 1
+
+    # Перезапустить игру
+    def reset_game(self):
+        print("Перезапустил")
+
+    # Сдаться
+    def give_up(self):
+        print("Сдался")
+
+    # Расставить корабли вручную
+    def manually_board(self):
+        print("Вручную")
+
+    # Расставить корабли вручную
+    def accidentally_board(self):
+
+
+
 
     # Обновление полей
     def update_board(self):
