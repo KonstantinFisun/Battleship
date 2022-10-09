@@ -19,6 +19,9 @@ class Battleship(bat.Ui_MainWindow):
         # Файл с игрой
         self.prolog.consult("prototype_game.pl")
 
+        # Подключаем кодировку
+        self.prolog.query("set_prolog_flag(encoding, utf8)")
+
         # Создаем списки с объектами
         self.board_player_primary = list()
         self.board_player_tracking = list()
@@ -77,24 +80,31 @@ class Battleship(bat.Ui_MainWindow):
 
     # Ход игрока
     def player_move(self):
-        print("Игрок")
+        # Обновляем поля
+        self.update_board()
+
         # Выполняем проверку на выигрышь
         check_win = list(self.prolog.query("game_won(player)"))
         if (len(check_win) > 0):
             return True
-
-        player_turn_first = list(self.prolog.query("player_turn_1"))
 
         # Получаем предыдущий текст
         text = self.messageBox.toPlainText()
 
         # Получаем входящие сообщения
         message = list(self.prolog.query("message(Mes)"))
-        print(message)
-        text += message[0]["Mes"]
+
+        mes = message[0]["Mes"]
+        if(len(mes)>0):
+            # Кодировка
+            mes = str(mes,'UTF-8')
+
+        text += mes
 
         # Выводим текст в окошко
         self.messageBox.setText(text + "Ход игрока\nВыберите клетку противника\n")
+
+        player_turn_first = list(self.prolog.query("player_turn_1"))
 
         # Обновляем ход
         self.current_move = [-1, -1]
@@ -118,7 +128,6 @@ class Battleship(bat.Ui_MainWindow):
 
     # Ход компьютера
     def computer_move(self):
-        print("Компьютер")
 
         # Выполняем проверку на выигрышь
         check_win = list(self.prolog.query("game_won(computer)"))
@@ -128,11 +137,14 @@ class Battleship(bat.Ui_MainWindow):
         computer_turn = list(self.prolog.query("computer_turn"))
 
         hit = list(self.prolog.query("hit_attempt(hit)"))  # Получаем попадание
+
+
         # Проверка что противник попал
         if (len(hit) > 0):
             return self.computer_move()
         # Если противник промазал
         else:
+
             return self.player_move()
 
     # Обработчик хода игрока
