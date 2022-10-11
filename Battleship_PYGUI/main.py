@@ -5,7 +5,9 @@ import bat
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QPushButton, QApplication
+from PyQt5.QtGui import QTextCursor
 
+import time
 
 class Battleship(bat.Ui_MainWindow):
 
@@ -72,24 +74,32 @@ class Battleship(bat.Ui_MainWindow):
         # Начало игры
         player_game = list(self.prolog.query("play_game"))
 
+        # Обновляем поля
+        self.update_board()
+
         # Выводим сообщение
         self.messageBox.setText("Добро пожаловать в морской бой!\n")
 
+
         # Игрок ходит первым
+        self.next_move = True
+
         self.player_move()
 
     # Ход игрока
     def player_move(self):
+        print("Ход игрока")
+        # Проверяем что ход игрока
+        if self.next_move == False:
+            return
+
         # Обновляем поля
         self.update_board()
 
         # Выполняем проверку на выигрышь
         check_win = list(self.prolog.query("game_won(player)"))
         if (len(check_win) > 0):
-            return True
-
-        # Получаем предыдущий текст
-        text = self.messageBox.toPlainText()
+            return
 
         # Получаем входящие сообщения
         message = list(self.prolog.query("message(Mes)"))
@@ -99,10 +109,23 @@ class Battleship(bat.Ui_MainWindow):
             # Кодировка
             mes = str(mes,'UTF-8')
 
-        text += mes
-
         # Выводим текст в окошко
-        self.messageBox.setText(text + "Ход игрока\nВыберите клетку противника\n")
+        # Получаем курсор
+        self.cursor = QTextCursor(self.messageBox.document())
+
+        # Устанавливаем, курсов вверху
+        self.cursor.setPosition(0)
+        self.messageBox.setTextCursor(self.cursor)
+
+        # Вывод текста
+        self.messageBox.insertPlainText("Ход игрока\nВыберите клетку противника\n\n")
+
+        # Устанавливаем, курсов вверху
+        self.cursor.setPosition(0)
+        self.messageBox.setTextCursor(self.cursor)
+
+        # Вывод текста
+        self.messageBox.insertPlainText(mes + "\n")
 
         player_turn_first = list(self.prolog.query("player_turn_1"))
 
@@ -110,46 +133,67 @@ class Battleship(bat.Ui_MainWindow):
         self.current_move = [-1, -1]
         self.check_move = True
 
+    # Продолжение хода игрока
     def player_move_continue(self):
+        print("Продолжение хода игрока")
+        # Проверяем что ход игрока
+        if self.next_move == False:
+            return
+
         # Обновляем поля
         self.update_board()
 
         # Производим расчеты
         player_turn_second = list(self.prolog.query("player_turn_2"))
 
-        # Проверка что игрок попал
         hit = list(self.prolog.query("hit_attempt(hit)"))  # Получаем попадание
+        print(hit)
         if len(hit) > 0:
             # Если игрок попал
-            return self.player_move()
-        # Если игрок промазал
+            self.next_move = True
+            self.player_move()
+            return
+
         else:
-            return self.computer_move()
+            # Если игрок промазал
+            self.next_move = False
+            self.computer_move()
+            return
 
     # Ход компьютера
     def computer_move(self):
+        print("Ход компьютера")
+        # Проверяем что ход компьютера
+        if self.next_move == True:
+            return
 
         # Выполняем проверку на выигрышь
         check_win = list(self.prolog.query("game_won(computer)"))
         if (len(check_win) > 0):
-            return False
+            return
 
         computer_turn = list(self.prolog.query("computer_turn"))
 
         hit = list(self.prolog.query("hit_attempt(hit)"))  # Получаем попадание
 
-
+        print(hit)
         # Проверка что противник попал
         if (len(hit) > 0):
-            return self.computer_move()
+            self.next_move = False
+            self.computer_move()
+            return
         # Если противник промазал
         else:
-
-            return self.player_move()
+            self.next_move = True
+            self.player_move()
+            return
 
     # Обработчик хода игрока
-
     def move(self):
+        # Проверяем что ход игрока
+        if self.next_move == False:
+            return
+
         btn = self.Centralwidget.sender()  # Откуда пришел сигнал
 
         self.current_move = [btn.objectName()[1], btn.objectName()[2]]  # Запоминаем выбранную клетку
@@ -161,7 +205,8 @@ class Battleship(bat.Ui_MainWindow):
         player_tracking = player_tracking[0]["PlayerTracking"]
 
         # Выполняем проверку, что ход корректен
-        if (player_tracking[i] != 1 or player_tracking[i] != 4 or player_tracking[i] != 0) and self.check_move == True:
+        if (player_tracking[i] == 1 or player_tracking[i] == 4 or player_tracking[i] == 0) and self.check_move == True:
+            print("Ход корректен")
             # Ход не требуется
             self.check_move = False
 
@@ -174,16 +219,21 @@ class Battleship(bat.Ui_MainWindow):
             # Ход требуется
             self.check_move = True
 
-            # Получаем предыдущий текст
-            text = self.messageBox.toPlainText()
+            # Устанавливаем, курсов вверху
+            self.cursor.setPosition(0)
+            self.messageBox.setTextCursor(self.cursor)
 
             # Выводим текст в окошко
-            self.messageBox.setText(text + "Клетка уже поражена\nВыберите другую клетку противника\n")
+            self.messageBox.insertPlainText("Клетка уже поражена\nВыберите другую клетку противника\n\n")
 
     # Перезапустить игру
     def reset_game(self):
-        clean_board()
-        print("Перезапустил")
+        # clean_board()
+        computer_primary = list(self.prolog.query("board(computer_primary, ComputerBoard)"))
+        computer_primary = computer_primary[0]["ComputerBoard"]
+        for i in range(100):
+            print(computer_primary[i])
+
 
     # Сдаться
     def give_up(self):
@@ -234,9 +284,11 @@ class Battleship(bat.Ui_MainWindow):
         player_tracking = list(self.prolog.query("board(player_tracking, PlayerTracking)"))
         player_primary = list(self.prolog.query("board(player_primary, PlayerBoard)"))
 
+        computer_primary = list(self.prolog.query("board(computer_tracking, ComputerBoard)"))
+
         player_tracking = player_tracking[0]["PlayerTracking"]
         player_primary = player_primary[0]["PlayerBoard"]
-
+        computer_primary = computer_primary[0]["ComputerBoard"]
         for i in range(100):
             # Если корабль
             if player_primary[i] == 1:
@@ -244,16 +296,7 @@ class Battleship(bat.Ui_MainWindow):
                                                            "border: 4px solid blue;")
 
             # Если пустая с попаданием
-            if player_primary[i] == 2:
-                self.board_player_primary[i].setStyleSheet("""background-image: url(2.png);
-                                                          background-repeat: no-repeat;
-                                                          background-position: center center;
-                                                          background-attachment: fixed;
-                                                          -webkit-background-size: cover;
-                                                          -moz-background-size: cover;
-                                                          -o-background-size: cover;
-                                                          background-size: cover;""")
-            if player_primary[i] == 3:
+            if computer_primary[i] == 2:
                 self.board_player_primary[i].setStyleSheet("""background-image: url(4.png);
                                                           background-repeat: no-repeat;
                                                           background-position: center center;
@@ -261,8 +304,27 @@ class Battleship(bat.Ui_MainWindow):
                                                           -webkit-background-size: cover;
                                                           -moz-background-size: cover;
                                                           -o-background-size: cover;
+                                                          background-size: cover;""")
+            if computer_primary[i] == 3:
+                self.board_player_primary[i].setStyleSheet("""background-image: url(3_my.png);
+                                                          background-repeat: no-repeat;
+                                                          background-position: center center;
+                                                          background-attachment: fixed;
+                                                          -webkit-background-size: cover;
+                                                          -moz-background-size: cover;
+                                                          -o-background-size: cover;
                                                           background-size: cover;
-                                                          border: 4px solid blue;""")
+                                                          """)
+            if computer_primary[i] == 4:
+                self.board_player_primary[i].setStyleSheet("""background-image: url(2.png);
+                                                          background-repeat: no-repeat;
+                                                          background-position: center center;
+                                                          background-attachment: fixed;
+                                                          -webkit-background-size: cover;
+                                                          -moz-background-size: cover;
+                                                          -o-background-size: cover;
+                                                          background-size: cover;
+                                                          """)
 
             # Если корабль
             if player_tracking[i] == 1:
@@ -290,6 +352,9 @@ class Battleship(bat.Ui_MainWindow):
                                                                   background-size: cover;
                                                                   border: 4px solid red;""")
             # Область вокруг корабля
+            if player_tracking[i] == 0:
+                self.board_player_tracking[i].setStyleSheet("background-color: rgb(255, 255, 255);\n"
+                "border: 1px solid black;")
             if player_tracking[i] == 4:
                 self.board_player_tracking[i].setStyleSheet("""background-image: url(2.png);
                                                                   background-repeat: no-repeat;
@@ -327,73 +392,6 @@ def main():
     MainWindow.show()
     sys.exit(app.exec_())
 
-    # # Запуск игры
-    # run = list(prolog.query("run"))
-    #
-    # # Игрок начинает первым
-    # move = 1
-    #
-    # show_player = list(prolog.query("show_player"))
-    #
-    # # Вывод информации о текущем состоянии полей
-    # player_tracking = list(prolog.query("board(player_tracking, PlayerTracking)"))
-    # player_primary = list(prolog.query("board(player_primary, PlayerBoard)"))
-    #
-    # player_turn = list(prolog.query("player_turn"))
-    #
-    # # Получаем значение матриц
-    # # print(player_tracking[0]["PlayerTracking"]) # Поле противника
-    # # print(player_primary[0]["PlayerBoard"]) # Поле игрока
-    #
-    # while (True):
-    #
-    #     turn = list(prolog.query("turn(player)"))  # Получаем ход игрока
-    #     hit = list(prolog.query("hit_attempt(hit)"))  # Получаем попадание
-    #     # Проверка, что ход игрока
-    #     if len(turn) > 0 or move == 1:
-    #         move = 0
-    #         print("Ход игрока")
-    #
-    #         # Показываем ход
-    #         show_player = list(prolog.query("show_player"))
-    #
-    #         # Показываем сообщение
-    #         show_message = list(prolog.query("message(Mes),write(Mes)"))
-    #
-    #         print(show_message[0]["Mes"].decode("UTF-8"))
-    #
-    #         # Удаляем ход игрока
-    #         delete_turn = list(prolog.query("retract(turn(player))"))
-    #
-    #         # Проверка что игрок попал
-    #         if (len(hit) > 0):
-    #             player_turn = list(prolog.query("player_turn"))
-    #         # Если игрок промазал
-    #         else:
-    #             computer_turn = list(prolog.query("computer_turn"))
-    #
-    #     # Ход компьютера
-    #     else:
-    #         print("Ход противника")
-    #
-    #         # Удаляем ход противника
-    #         delete_turn = list(prolog.query("retract(turn(computer))"))
-    #
-    #         # Проверка что компьютер попал
-    #         if (len(hit) > 0):
-    #             player_turn = list(prolog.query("player_turn"))
-    #
-    #         # Если компьютер промазал
-    #         else:
-    #             computer_turn = list(prolog.query("computer_turn"))
-    #
-    #     # Вывод информации о текущем состоянии полей
-    #     # player_tracking = list(prolog.query("board(player_tracking, PlayerTracking)"))
-    #     # player_primary = list(prolog.query("board(player_primary, PlayerBoard)"))
-    #
-    #     # Получаем значение матриц
-    #     # print(player_tracking[0]["PlayerTracking"])  # Поле противника
-    #     # print(player_primary[0]["PlayerBoard"])  # Поле игрока
 
 
 if __name__ == "__main__":

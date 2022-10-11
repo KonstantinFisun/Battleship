@@ -1538,7 +1538,7 @@ clean :-
     clean_message,
     !.
 
-clean_player_primary :- repeat, (retract( board(player_primary,_) ) -> false; true).
+clean_player_primary :- repeat, (retract( board(player_primary,_) ) -> false; true,!).
 clean_player_tracking :- repeat, (retract( board(player_tracking,_) ) -> false; true).
 clean_computer_primary :- repeat, (retract( board(computer_primary,_) ) -> false; true).
 clean_computer_tracking :- repeat, (retract( board(computer_tracking,_) ) -> false; true).

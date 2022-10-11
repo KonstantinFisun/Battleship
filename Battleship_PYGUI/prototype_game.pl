@@ -384,7 +384,7 @@ player_turn_2:-
     retract( turn(player) ),
 
     % ”дал€ем текущий ход
-    retract( current_move(_,_) ).
+    retract( current_move(_,_) ),!.
 
     % ¬ыполнить проверку кто делает следующий ход через попадание
 
@@ -416,7 +416,7 @@ computer_turn :-
     retract( turn(computer) ),
 
     % ”дал€ем текущий ход
-    retract( current_move(_,_) ).
+    retract( current_move(_,_) ),!.
 
  % ¬ыполнить проверку кто делает следующий ход через попадание
 
