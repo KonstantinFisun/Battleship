@@ -4,7 +4,7 @@ from pyswip import Prolog, Functor, Variable, Query
 import bat
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QMainWindow, QPushButton, QApplication
+from PyQt5.QtWidgets import QMainWindow, QPushButton, QApplication, QMessageBox
 from PyQt5.QtGui import QTextCursor
 import sys
 
@@ -66,9 +66,11 @@ class Battleship(bat.Ui_MainWindow):
         for but in self.board_player_tracking:
             but.clicked.connect(self.move)
 
+        # Кнопка перезапустить с message
+
+
     # Старт игры
     def start_game(self):
-
         # Проверка, что поле игрока заполнено
         if self.setup_board_player == False:
             self.messageBox.setText("Заполните поле игрока перед началом!\n")
@@ -96,7 +98,6 @@ class Battleship(bat.Ui_MainWindow):
 
     # Ход игрока
     def player_move(self):
-        print("Ход игрока")
         # Добавляем в базу ход игрока
 
         # Проверяем что ход игрока
@@ -109,6 +110,13 @@ class Battleship(bat.Ui_MainWindow):
         # Выполняем проверку на выигрышь
         check_win = list(self.prolog.query("game_won(player)"))
         if (len(check_win) > 0):
+            self.win()
+            # Очистка буфера
+            clean = list(self.prolog.query("clean"))
+            # Очищаем поля игрока
+            clean_board = list(self.prolog.query("clean_player_primary"))
+            clean_ships = list(self.prolog.query("clean_ships"))
+            self.clean_board()
             return
 
         # Получаем входящие сообщения
@@ -145,7 +153,6 @@ class Battleship(bat.Ui_MainWindow):
 
     # Продолжение хода игрока
     def player_move_continue(self):
-        print("Продолжение хода игрока")
         # Проверяем что ход игрока
         if self.next_move == False:
             return
@@ -158,8 +165,6 @@ class Battleship(bat.Ui_MainWindow):
 
         hit = list(self.prolog.query("hit_attempt(hit)"))  # Получаем попадание
 
-
-        print(hit)
         if len(hit) > 0:
             # Если игрок попал
             self.next_move = True
@@ -174,8 +179,6 @@ class Battleship(bat.Ui_MainWindow):
 
     # Ход компьютера
     def computer_move(self):
-        print("Ход компьютера")
-
         # Проверяем что ход компьютера
         if self.next_move == True:
             return
@@ -183,13 +186,19 @@ class Battleship(bat.Ui_MainWindow):
         # Выполняем проверку на выигрышь
         check_win = list(self.prolog.query("game_won(computer)"))
         if (len(check_win) > 0):
+            self.lose()
+            # Очистка буфера
+            clean = list(self.prolog.query("clean"))
+            # Очищаем поля игрока
+            clean_board = list(self.prolog.query("clean_player_primary"))
+            clean_ships = list(self.prolog.query("clean_ships"))
+            self.clean_board()
             return
 
         computer_turn = list(self.prolog.query("computer_turn"))
 
         hit = list(self.prolog.query("hit_attempt(hit)"))  # Получаем попадание
 
-        print(hit)
         # Проверка что противник попал
         if (len(hit) > 0):
             self.next_move = False
@@ -219,7 +228,6 @@ class Battleship(bat.Ui_MainWindow):
 
         # Выполняем проверку, что ход корректен
         if (player_tracking[i] == 1 or player_tracking[i] == 4 or player_tracking[i] == 0) and self.check_move == True:
-            print("Ход корректен")
             # Ход не требуется
             self.check_move = False
 
@@ -241,50 +249,95 @@ class Battleship(bat.Ui_MainWindow):
 
     # Перезапустить игру
     def reset_game(self):
-        computer_primary = list(self.prolog.query("board(computer_tracking, ComputerBoard)"))
-        computer_primary = computer_primary[0]["ComputerBoard"]
-        text = ""
-        for i in range(100):
-            text += str(computer_primary[i]) + " "
-            if i % 10 == 0:
-                print(text + "\n")
-                text = " "
+        # Проверка, что поле игрока заполнено
+        if self.setup_board_player == False:
+            self.messageBox.setText("Заполните поле игрока перед началом!\n")
+            return
+
+        # Очищаем поля игрока
+        clean_board = list(self.prolog.query("clean_player_primary"))
+        clean_ships = list(self.prolog.query("clean_ships"))
+
+        # Добавление в базу расстановки кораблей
+        self.prolog.asserta(f"board(player_primary, {self.board})")
+        self.prolog.asserta(f"ship(player, {self.ships})")
+
+        # Обновляем поле игрока
+        self.update_solo_board(self.board)
+
+        # Обновляем поле игрока
+        self.update_solo_board(self.board)
+
+        # Вызов старта игры
+        self.start_game()
 
     # Сдаться
     def give_up(self):
-        clean_board()
-        print("Сдался")
+        self.lose()
+        # Очистка буфера
+        clean = list(self.prolog.query("clean"))
+        # Очищаем поля игрока
+        clean_board = list(self.prolog.query("clean_player_primary"))
+        clean_ships = list(self.prolog.query("clean_ships"))
+        self.clean_board()
 
     # Расставить корабли вручную
     def manually_board(self):
-        computer_turn = list(self.prolog.query("computer_turn"))
+        # computer_turn = list(self.prolog.query("computer_turn"))
 
-        hit = list(self.prolog.query("hit_attempt(hit)"))  # Получаем попадание
-        print(hit)
         self.update_board()
 
+    # Игрок выиграл
+    def win(self):
+        msg = QMessageBox()
+        msg.setWindowTitle("Победа")
+        msg.setText("Вы выиграли!!! Нажмите начать игру, чтобы начать сначала")
+        msg.setIcon(QMessageBox.Information)
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.exec_()
+
+    # Игрок проиграл
+    def lose(self):
+        msg = QMessageBox()
+        # Название окна
+        msg.setWindowTitle("Проигрышь")
+        # Техт
+        msg.setText("К сожалению, вы проиграли. Нажмите начать игру, чтобы начать сначала")
+
+        # Иконка
+        msg.setIcon(QMessageBox.Information)
+        # Создание кнопки
+        # self.ok = QtWidgets.QPushButton(msg)
+        # self.ok.setGeometry(QtCore.QRect(20, 78, 90, 30))
+        # self.ok.setStyleSheet("background-color: rgb(255, 255, 255);\n"
+        #                        "border: 1px solid black;")
+        # self.ok.setText("Перезапустить")
+        # # self.ok.clicked.connect(self.reset_game())
+        msg.setStandardButtons(QMessageBox.Close)
+
+        msg.exec_()
 
     # Расставить корабли случайно
     def accidentally_board(self):
         self.setup_board_player = True
 
         # Очищаем поля игрока
-        clean = list(self.prolog.query("clean_player_primary"))
-        clean_1 = list(self.prolog.query("clean_ships"))
+        clean_board = list(self.prolog.query("clean_player_primary"))
+        clean_ships = list(self.prolog.query("clean_ships"))
 
         # Выполняем запрос к прологу для генерации поля
         generateBoard = list(self.prolog.query("generatePlayerBoard(Board,Ship)"))
 
-        # Добавляем в базу данные
-        ships = generateBoard[0]["Ship"]
-        board = generateBoard[0]["Board"]
+        # Получаем полученную расстановку
+        self.ships = generateBoard[0]["Ship"]
+        self.board = generateBoard[0]["Board"]
 
         # Добавление в базу расстановки кораблей
-        self.prolog.asserta(f"board(player_primary, {board})")
-        self.prolog.asserta(f"ship(player, {ships})")
+        self.prolog.asserta(f"board(player_primary, {self.board})")
+        self.prolog.asserta(f"ship(player, {self.ships})")
 
         # Обновляем поле игрока
-        self.update_solo_board(board)
+        self.update_solo_board(self.board)
 
     # Обновление одного поля
     def update_solo_board(self, board):
