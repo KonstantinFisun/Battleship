@@ -1,10 +1,11 @@
 % Динамические предикаты поля,
-:- dynamic game_won/1, current_move/2, turn/1, hit_attempt/1, turn_result/1, computer_mode/1, board/2, ships/2, hit_ships/2, destroy_ship/1, message/1.
+:- dynamic game_won/1, current_move/2, turn/1, hit_attempt/1, turn_result/1, computer_mode/1, board/2, hit_ships/2, destroy_ship/1, message/1,ship/2.
 % Добавление данных игрока в базу
 player_board(Board,Ship):-
     % Генерация поля игрока
     assert( board(player_primary, Board) ),% Добавление поля игрока в базу
-    assert(ships(player,Ship)). % Добавление кораблей игрока в базу
+    assert(ship(player,Ship)). % Добавление кораблей игрока в базу
+
 
 % Запуск алгоритма игры
 play_game :-
@@ -384,7 +385,7 @@ player_turn_2:-
     retract( turn(player) ),
 
     % Удаляем текущий ход
-    retract( current_move(_,_) ).
+    retract( current_move(_,_) ),!.
 
     % Выполнить проверку кто делает следующий ход через попадание
 
@@ -416,7 +417,7 @@ computer_turn :-
     retract( turn(computer) ),
 
     % Удаляем текущий ход
-    retract( current_move(_,_) ).
+    retract( current_move(_,_) ),!.
 
  % Выполнить проверку кто делает следующий ход через попадание
 
@@ -578,7 +579,7 @@ delete_ship_for_player:-
     hit_ships(player,HitPlayer),
 
     % Получаем список кораблей врага
-    ships(computer,ShipsComputer),
+    ship(computer,ShipsComputer),
 
     % Получаем доступ к полю computer_primary
     board(computer_primary,ComputerBoard),
@@ -615,7 +616,7 @@ delete_ship_for_player:-
     retract(hit_ships(player,_)),
 
     % Удаляем предыдущие список кораблей
-    retract(ships(computer,_)),
+    retract(ship(computer,_)),
 
     % Добавляем новые поля в базу
     assert(board(computer_primary,NewComputerBoard)),
@@ -625,7 +626,7 @@ delete_ship_for_player:-
     assert(hit_ships(player,NewHitPlayer)),
 
     % Добавляем в базу новый список кораблей
-    assert(ships(computer,NewShipsComputer)),
+    assert(ship(computer,NewShipsComputer)),
 
     message(Mes),
 
@@ -642,7 +643,7 @@ delete_ship_for_computer:-
     hit_ships(computer,HitComputer),
 
     % Получаем список кораблей врага
-    ships(player,ShipsPlayer),
+    ship(player,ShipsPlayer),
 
     % Получаем доступ к полю player_primary
     board(player_primary,PlayerBoard),
@@ -679,7 +680,7 @@ delete_ship_for_computer:-
     retract(hit_ships(computer,_)),
 
     % Удаляем предыдущие список кораблей
-    retract(ships(player,_)),
+    retract(ship(player,_)),
 
     % Добавляем новые поля в базу
     assert(board(player_primary,NewPlayerBoard)),
@@ -689,7 +690,7 @@ delete_ship_for_computer:-
     assert(hit_ships(computer,NewHitComputer)),
 
     % Добавляем в базу новый список кораблей
-    assert(ships(player,NewShipsPlayer)),
+    assert(ship(player,NewShipsPlayer)),
 
     % Добавляем, что был уничтожен корабль
     assert(destroy_ship(1)),
@@ -781,7 +782,7 @@ generateComputerBoard(B) :-
     placeShips_3(2,B0,B1,Ship_4,Ship_3), % Создание 2 кораблей 3 на 1
     placeShips_2(3,B1,B2,Ship_3,Ship_2), %
     placeShips_1(4,B2,B,Ship_2,Ship),!,
-    assert(ships(computer,Ship)).
+    assert(ship(computer,Ship)).
 
 
 % Размещаем корабль 4 на 1 на доске
@@ -1532,7 +1533,6 @@ clean :-
     clean_attempt,
     clean_current_move,
     clean_computer_mode,
-    clean_ships,
     clean_hit_ships,
     clean_destroy_ship,
     clean_message,
@@ -1546,7 +1546,7 @@ clean_turn :- repeat, (retract( turn(_) ) -> false; true).
 clean_attempt :- repeat, (retract( hit_attempt(_) ) -> false; true).
 clean_current_move :- repeat, (retract( current_move(_, _) ) -> false; true).
 clean_computer_mode :- repeat, (retract( computer_mode(_) ) -> false; true).
-clean_ships:- repeat, (retract( ships(_,_) ) -> false; true).
+clean_ships:- repeat, (retract( ship(_,_) ) -> false; true).
 clean_hit_ships:- repeat, (retract( hit_ships(_,_) ) -> false; true).
 clean_destroy_ship:- repeat, (retract( destroy_ship(_) ) -> false; true).
 clean_message:- repeat, (retract( message(_) ) -> false; true).

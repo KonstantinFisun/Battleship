@@ -6,6 +6,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QPushButton, QApplication
 from PyQt5.QtGui import QTextCursor
+import sys
 
 import time
 
@@ -14,6 +15,9 @@ class Battleship(bat.Ui_MainWindow):
     def setupUi(self, MainWindow):
         # Установка формы
         super().setupUi(MainWindow)
+
+        # Определение заполненого поля игрока
+        self.setup_board_player = False
 
         # Подключаем пролог
         self.prolog = Prolog()
@@ -64,10 +68,15 @@ class Battleship(bat.Ui_MainWindow):
 
     # Старт игры
     def start_game(self):
+
+        # Проверка, что поле игрока заполнено
+        if self.setup_board_player == False:
+            self.messageBox.setText("Заполните поле игрока перед началом!\n")
+            return
+
         # Очистка буфера
         clean = list(self.prolog.query("clean"))
         # Запуск игры
-
         # Ход не требуется
         self.check_move = False
 
@@ -80,7 +89,6 @@ class Battleship(bat.Ui_MainWindow):
         # Выводим сообщение
         self.messageBox.setText("Добро пожаловать в морской бой!\n")
 
-
         # Игрок ходит первым
         self.next_move = True
 
@@ -89,6 +97,8 @@ class Battleship(bat.Ui_MainWindow):
     # Ход игрока
     def player_move(self):
         print("Ход игрока")
+        # Добавляем в базу ход игрока
+
         # Проверяем что ход игрока
         if self.next_move == False:
             return
@@ -147,6 +157,8 @@ class Battleship(bat.Ui_MainWindow):
         player_turn_second = list(self.prolog.query("player_turn_2"))
 
         hit = list(self.prolog.query("hit_attempt(hit)"))  # Получаем попадание
+
+
         print(hit)
         if len(hit) > 0:
             # Если игрок попал
@@ -163,6 +175,7 @@ class Battleship(bat.Ui_MainWindow):
     # Ход компьютера
     def computer_move(self):
         print("Ход компьютера")
+
         # Проверяем что ход компьютера
         if self.next_move == True:
             return
@@ -228,12 +241,14 @@ class Battleship(bat.Ui_MainWindow):
 
     # Перезапустить игру
     def reset_game(self):
-        # clean_board()
-        computer_primary = list(self.prolog.query("board(computer_primary, ComputerBoard)"))
+        computer_primary = list(self.prolog.query("board(computer_tracking, ComputerBoard)"))
         computer_primary = computer_primary[0]["ComputerBoard"]
+        text = ""
         for i in range(100):
-            print(computer_primary[i])
-
+            text += str(computer_primary[i]) + " "
+            if i % 10 == 0:
+                print(text + "\n")
+                text = " "
 
     # Сдаться
     def give_up(self):
@@ -242,13 +257,20 @@ class Battleship(bat.Ui_MainWindow):
 
     # Расставить корабли вручную
     def manually_board(self):
-        print("Вручную")
+        computer_turn = list(self.prolog.query("computer_turn"))
+
+        hit = list(self.prolog.query("hit_attempt(hit)"))  # Получаем попадание
+        print(hit)
+        self.update_board()
+
 
     # Расставить корабли случайно
     def accidentally_board(self):
+        self.setup_board_player = True
 
         # Очищаем поля игрока
         clean = list(self.prolog.query("clean_player_primary"))
+        clean_1 = list(self.prolog.query("clean_ships"))
 
         # Выполняем запрос к прологу для генерации поля
         generateBoard = list(self.prolog.query("generatePlayerBoard(Board,Ship)"))
@@ -257,8 +279,9 @@ class Battleship(bat.Ui_MainWindow):
         ships = generateBoard[0]["Ship"]
         board = generateBoard[0]["Board"]
 
-        self.prolog.assertz(f"board(player_primary, {board})")
-        self.prolog.assertz(f"ships(player, {ships})")
+        # Добавление в базу расстановки кораблей
+        self.prolog.asserta(f"board(player_primary, {board})")
+        self.prolog.asserta(f"ship(player, {ships})")
 
         # Обновляем поле игрока
         self.update_solo_board(board)
@@ -284,19 +307,31 @@ class Battleship(bat.Ui_MainWindow):
         player_tracking = list(self.prolog.query("board(player_tracking, PlayerTracking)"))
         player_primary = list(self.prolog.query("board(player_primary, PlayerBoard)"))
 
-        computer_primary = list(self.prolog.query("board(computer_tracking, ComputerBoard)"))
-
         player_tracking = player_tracking[0]["PlayerTracking"]
         player_primary = player_primary[0]["PlayerBoard"]
-        computer_primary = computer_primary[0]["ComputerBoard"]
+
+        #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         for i in range(100):
-            # Если корабль
+            #  Коды ячеек
+            #     0 - Пустая, без попадания
+            #     1 - Занятая, без попадания
+            #     2 - Пустая, с попаданием
+            #     3 - Занятая, с попадание
+            #     4 - Зона вокруг корабля, без попадания
+
+            # Поле игрока
+
+            # Если клетка пустая без попадания
+            if player_primary[i] == 0:
+                self.board_player_primary[i].setStyleSheet("background-color: rgb(255, 255, 255);")
+
+            # Если клетка занята кораблем без попадания
             if player_primary[i] == 1:
                 self.board_player_primary[i].setStyleSheet("background-color: rgb(255, 255, 255);\n"
                                                            "border: 4px solid blue;")
 
             # Если пустая с попаданием
-            if computer_primary[i] == 2:
+            if player_primary[i] == 2:
                 self.board_player_primary[i].setStyleSheet("""background-image: url(4.png);
                                                           background-repeat: no-repeat;
                                                           background-position: center center;
@@ -305,7 +340,8 @@ class Battleship(bat.Ui_MainWindow):
                                                           -moz-background-size: cover;
                                                           -o-background-size: cover;
                                                           background-size: cover;""")
-            if computer_primary[i] == 3:
+            # Если клетка занята кораблем с попаданием
+            if player_primary[i] == 3:
                 self.board_player_primary[i].setStyleSheet("""background-image: url(3_my.png);
                                                           background-repeat: no-repeat;
                                                           background-position: center center;
@@ -315,21 +351,16 @@ class Battleship(bat.Ui_MainWindow):
                                                           -o-background-size: cover;
                                                           background-size: cover;
                                                           """)
-            if computer_primary[i] == 4:
-                self.board_player_primary[i].setStyleSheet("""background-image: url(2.png);
-                                                          background-repeat: no-repeat;
-                                                          background-position: center center;
-                                                          background-attachment: fixed;
-                                                          -webkit-background-size: cover;
-                                                          -moz-background-size: cover;
-                                                          -o-background-size: cover;
-                                                          background-size: cover;
-                                                          """)
 
-            # Если корабль
+            # Поле противника
+            # Если клетка пустая без попадания
+            if player_tracking[i] == 0:
+                self.board_player_tracking[i].setStyleSheet("background-color: rgb(255, 255, 255);")
+
+            # Если клетка занята кораблем без попадания
             if player_tracking[i] == 1:
                 self.board_player_tracking[i].setStyleSheet("background-color: rgb(255, 255, 255);\n"
-                                                            "border: 4px solid red;")
+                                                           "border: 4px solid blue;")
 
             # Если пустая с попаданием
             if player_tracking[i] == 2:
@@ -341,20 +372,11 @@ class Battleship(bat.Ui_MainWindow):
                                                                   -moz-background-size: cover;
                                                                   -o-background-size: cover;
                                                                   background-size: cover;""")
+            # Если клетка занята кораблем с попаданием
             if player_tracking[i] == 3:
-                self.board_player_tracking[i].setStyleSheet("""background-image: url(4.png);
-                                                                  background-repeat: no-repeat;
-                                                                  background-position: center center;
-                                                                  background-attachment: fixed;
-                                                                  -webkit-background-size: cover;
-                                                                  -moz-background-size: cover;
-                                                                  -o-background-size: cover;
-                                                                  background-size: cover;
-                                                                  border: 4px solid red;""")
-            # Область вокруг корабля
-            if player_tracking[i] == 0:
                 self.board_player_tracking[i].setStyleSheet("background-color: rgb(255, 255, 255);\n"
-                "border: 1px solid black;")
+                                                           "border: 4px solid red;")
+            # Клетка вокруг утонувшего корабля
             if player_tracking[i] == 4:
                 self.board_player_tracking[i].setStyleSheet("""background-image: url(2.png);
                                                                   background-repeat: no-repeat;
@@ -365,15 +387,6 @@ class Battleship(bat.Ui_MainWindow):
                                                                   -o-background-size: cover;
                                                                   background-size: cover;
                                                                   """)
-                self.board_player_primary[i].setStyleSheet("""background-image: url(2.png);
-                                                                                  background-repeat: no-repeat;
-                                                                                  background-position: center center;
-                                                                                  background-attachment: fixed;
-                                                                                  -webkit-background-size: cover;
-                                                                                  -moz-background-size: cover;
-                                                                                  -o-background-size: cover;
-                                                                                  background-size: cover;
-                                                                                  """)
 
     # Очистка полей
     def clean_board(self):
