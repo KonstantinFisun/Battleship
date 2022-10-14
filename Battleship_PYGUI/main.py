@@ -110,6 +110,7 @@ class Battleship(bat.Ui_MainWindow):
         # Выполняем проверку на выигрышь
         check_win = list(self.prolog.query("game_won(player)"))
         if (len(check_win) > 0):
+            self.update_board()
             self.win()
             # Очистка буфера
             clean = list(self.prolog.query("clean"))
@@ -186,6 +187,7 @@ class Battleship(bat.Ui_MainWindow):
         # Выполняем проверку на выигрышь
         check_win = list(self.prolog.query("game_won(computer)"))
         if (len(check_win) > 0):
+            self.update_board()
             self.lose()
             # Очистка буфера
             clean = list(self.prolog.query("clean"))
@@ -385,7 +387,7 @@ class Battleship(bat.Ui_MainWindow):
 
             # Если пустая с попаданием
             if player_primary[i] == 2:
-                self.board_player_primary[i].setStyleSheet("""background-image: url(4.png);
+                self.board_player_primary[i].setStyleSheet("""background-image: url(block1.png);
                                                           background-repeat: no-repeat;
                                                           background-position: center center;
                                                           background-attachment: fixed;
@@ -405,6 +407,18 @@ class Battleship(bat.Ui_MainWindow):
                                                           background-size: cover;
                                                           """)
 
+                # Если клетка занята кораблем с попаданием
+                if player_primary[i] == 4:
+                    self.board_player_primary[i].setStyleSheet("""background-image: url(block1.png);
+                                                                      background-repeat: no-repeat;
+                                                                      background-position: center center;
+                                                                      background-attachment: fixed;
+                                                                      -webkit-background-size: cover;
+                                                                      -moz-background-size: cover;
+                                                                      -o-background-size: cover;
+                                                                      background-size: cover;
+                                                                      """)
+
             # Поле противника
             # Если клетка пустая без попадания
             if player_tracking[i] == 0:
@@ -417,7 +431,7 @@ class Battleship(bat.Ui_MainWindow):
 
             # Если пустая с попаданием
             if player_tracking[i] == 2:
-                self.board_player_tracking[i].setStyleSheet("""background-image: url(4.png);
+                self.board_player_tracking[i].setStyleSheet("""background-image: url(block.png);
                                                                   background-repeat: no-repeat;
                                                                   background-position: center center;
                                                                   background-attachment: fixed;
@@ -431,7 +445,7 @@ class Battleship(bat.Ui_MainWindow):
                                                            "border: 4px solid red;")
             # Клетка вокруг утонувшего корабля
             if player_tracking[i] == 4:
-                self.board_player_tracking[i].setStyleSheet("""background-image: url(2.png);
+                self.board_player_tracking[i].setStyleSheet("""background-image: url(block.png);
                                                                   background-repeat: no-repeat;
                                                                   background-position: center center;
                                                                   background-attachment: fixed;
