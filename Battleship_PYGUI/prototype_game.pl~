@@ -1546,7 +1546,7 @@ clean_turn :- repeat, (retract( turn(_) ) -> false; true).
 clean_attempt :- repeat, (retract( hit_attempt(_) ) -> false; true).
 clean_current_move :- repeat, (retract( current_move(_, _) ) -> false; true).
 clean_computer_mode :- repeat, (retract( computer_mode(_) ) -> false; true).
-clean_ships:- repeat, (retract( ship(_,_) ) -> false; true).
+clean_ships:- repeat, (retract( ship(_,_) ) -> false; true,!).
 clean_hit_ships:- repeat, (retract( hit_ships(_,_) ) -> false; true).
 clean_destroy_ship:- repeat, (retract( destroy_ship(_) ) -> false; true).
 clean_message:- repeat, (retract( message(_) ) -> false; true).
