@@ -11,7 +11,7 @@ import sys
 import time
 
 class Battleship(bat.Ui_MainWindow):
-
+    # Установка
     def setupUi(self, MainWindow):
         # Установка формы
         super().setupUi(MainWindow)
@@ -42,6 +42,12 @@ class Battleship(bat.Ui_MainWindow):
             if a.startswith('c') and len(a) == 3:
                 self.board_player_tracking.append(getattr(self, a))
 
+        # Получаем курсор
+        self.cursor = QTextCursor(self.messageBox.document())
+
+        # Ход не требуется
+        self.next_move = False
+
         # Добавляем функционал
         self.add_functions()
 
@@ -65,9 +71,6 @@ class Battleship(bat.Ui_MainWindow):
         # Кнопки для хода у противника
         for but in self.board_player_tracking:
             but.clicked.connect(self.move)
-
-        # Кнопка перезапустить с message
-
 
     # Старт игры
     def start_game(self):
@@ -98,8 +101,6 @@ class Battleship(bat.Ui_MainWindow):
 
     # Ход игрока
     def player_move(self):
-        # Добавляем в базу ход игрока
-
         # Проверяем что ход игрока
         if self.next_move == False:
             return
@@ -129,9 +130,6 @@ class Battleship(bat.Ui_MainWindow):
             mes = str(mes,'UTF-8')
 
         # Выводим текст в окошко
-        # Получаем курсор
-        self.cursor = QTextCursor(self.messageBox.document())
-
         # Устанавливаем, курсов вверху
         self.cursor.setPosition(0)
         self.messageBox.setTextCursor(self.cursor)
@@ -214,8 +212,17 @@ class Battleship(bat.Ui_MainWindow):
 
     # Обработчик хода игрока
     def move(self):
+        print(1)
         # Проверяем что ход игрока
         if self.next_move == False:
+            print(2)
+            # Устанавливаем, курсов вверху
+            self.cursor.setPosition(0)
+            self.messageBox.setTextCursor(self.cursor)
+
+            # Вывод текста
+            self.messageBox.insertPlainText("Ход в данный момент не доступен!\n")
+
             return
 
         btn = self.Centralwidget.sender()  # Откуда пришел сигнал
@@ -441,8 +448,14 @@ class Battleship(bat.Ui_MainWindow):
                                                                   background-size: cover;""")
             # Если клетка занята кораблем с попаданием
             if player_tracking[i] == 3:
-                self.board_player_tracking[i].setStyleSheet("background-color: rgb(255, 255, 255);\n"
-                                                           "border: 4px solid red;")
+                self.board_player_tracking[i].setStyleSheet("""background-image: url(4.png);
+                                                                  background-repeat: no-repeat;
+                                                                  background-position: center center;
+                                                                  background-attachment: fixed;
+                                                                  -webkit-background-size: cover;
+                                                                  -moz-background-size: cover;
+                                                                  -o-background-size: cover;
+                                                                  background-size: cover;""")
             # Клетка вокруг утонувшего корабля
             if player_tracking[i] == 4:
                 self.board_player_tracking[i].setStyleSheet("""background-image: url(block.png);
@@ -457,6 +470,9 @@ class Battleship(bat.Ui_MainWindow):
 
     # Очистка полей
     def clean_board(self):
+        self.setup_board_player = False
+        self.next_move = False
+        self.messageBox.setText("")
         for i in range(100):
             self.board_player_primary[i].setStyleSheet("background-color: rgb(255, 255, 255);\n"
                                                        "border: 1px solid black;")
