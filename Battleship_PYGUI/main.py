@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 import sys
 from pyswip import Prolog, Functor, Variable, Query
 import bat
+import Manually
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QPushButton, QApplication, QMessageBox
@@ -212,10 +213,10 @@ class Battleship(bat.Ui_MainWindow):
 
     # Обработчик хода игрока
     def move(self):
-        print(1)
+
         # Проверяем что ход игрока
         if self.next_move == False:
-            print(2)
+
             # Устанавливаем, курсов вверху
             self.cursor.setPosition(0)
             self.messageBox.setTextCursor(self.cursor)
@@ -292,9 +293,13 @@ class Battleship(bat.Ui_MainWindow):
 
     # Расставить корабли вручную
     def manually_board(self):
-        # computer_turn = list(self.prolog.query("computer_turn"))
+        manual = QtWidgets.QWidget()
+        print(1)
+        pyk = Manually.Manually()
+        pyk.setupUi(manual)
+        manual.show()
 
-        self.update_board()
+
 
     # Игрок выиграл
     def win(self):
