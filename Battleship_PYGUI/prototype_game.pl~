@@ -11,7 +11,7 @@ player_board(Board,Ship):-
 play_game :-
     assert(hit_ships(player,[])), % Попадания игрока
     assert(hit_ships(computer,[])), % Попадание компьютера
-    board(empty_board, Empty),
+    board(empty_board, Empty), %
 
 
 
@@ -1536,6 +1536,7 @@ clean :-
     clean_hit_ships,
     clean_destroy_ship,
     clean_message,
+    clean_win,
     !.
 
 clean_player_primary :- repeat, (retract( board(player_primary,_) ) -> false; true,!).
@@ -1550,6 +1551,7 @@ clean_ships:- repeat, (retract( ship(_,_) ) -> false; true,!).
 clean_hit_ships:- repeat, (retract( hit_ships(_,_) ) -> false; true).
 clean_destroy_ship:- repeat, (retract( destroy_ship(_) ) -> false; true).
 clean_message:- repeat, (retract( message(_) ) -> false; true).
+clean_win:- repeat, (retract( game_won(_) ) -> false; true).
 
 % ---------------------------------------------------------------------------
 % Вспомогательные функции

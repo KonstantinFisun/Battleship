@@ -8,14 +8,18 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QMainWindow, QPushButton, QApplication, QMessageBox
 from PyQt5.QtGui import QTextCursor
 import sys
-
 import time
+import numpy as np
 
 class Battleship(bat.Ui_MainWindow):
     # Установка
     def setupUi(self, MainWindow):
+
         # Установка формы
         super().setupUi(MainWindow)
+
+        # Создание формы для заполнения кораблей вручную
+        self.manual = Manually.Manually()
 
         # Определение заполненого поля игрока
         self.setup_board_player = False
@@ -49,6 +53,8 @@ class Battleship(bat.Ui_MainWindow):
         # Ход не требуется
         self.next_move = False
 
+        self.board = [0] * 100
+
         # Добавляем функционал
         self.add_functions()
 
@@ -72,6 +78,20 @@ class Battleship(bat.Ui_MainWindow):
         # Кнопки для хода у противника
         for but in self.board_player_tracking:
             but.clicked.connect(self.move)
+
+        self.manual.Start_3.clicked.connect(self.apply)
+
+        # Кнопка 'Очистить'
+        self.manual.Clear.clicked.connect(self.manual.clear)
+
+        # Кнопка 'Отмена'
+        self.manual.Cancel.clicked.connect(self.manual.cancel)
+
+        # Кнопки для расстановки кораблей
+        for but in self.manual.board:
+            but.clicked.connect(self.manual.click)
+
+
 
     # Старт игры
     def start_game(self):
@@ -293,13 +313,37 @@ class Battleship(bat.Ui_MainWindow):
 
     # Расставить корабли вручную
     def manually_board(self):
-        manual = QtWidgets.QWidget()
-        print(1)
-        pyk = Manually.Manually()
-        pyk.setupUi(manual)
-        manual.show()
+        self.manual.board_returned = self.board
+        self.manual.update()
+        self.manual.show()
+
+    # Кнопка нажатия применить в форме Manually
+    def apply(self):
+        # Прячем окно
+        self.manual.hide()
+        # Получаем матрицу поля с кораблями
+        self.board = self.manual.board_returned
+        #self.location_ships(self.board)
+        # Обновляем поле игрока
+        self.update_solo_board(self.board)
 
 
+    # Функции определяющая позиции кораблей
+    def location_ships(self, board):
+        print(board)
+        board_around = [ [0] * 10] * 10
+
+        board = np.reshape(board, (-1, 10))
+        board = np.insert(board, 10, [0] * 10, axis = 1)
+        board = np.insert(board, 0, [0] * 10, axis=1)
+
+        # board = np.insert(board, 9, [0] * 10, axis = 2)
+        # board = np.insert(board, 0, [0] * 10, axis=2)
+        # for i in range(10):
+        #     for j in range(10):
+        #         board_around[i][j] = board[i][j] + board[i + 1][j] + board[i - 1][j] + board[i][j + 1] + board[i][j - 1]
+
+        print(board)
 
     # Игрок выиграл
     def win(self):
@@ -320,15 +364,7 @@ class Battleship(bat.Ui_MainWindow):
 
         # Иконка
         msg.setIcon(QMessageBox.Information)
-        # Создание кнопки
-        # self.ok = QtWidgets.QPushButton(msg)
-        # self.ok.setGeometry(QtCore.QRect(20, 78, 90, 30))
-        # self.ok.setStyleSheet("background-color: rgb(255, 255, 255);\n"
-        #                        "border: 1px solid black;")
-        # self.ok.setText("Перезапустить")
-        # # self.ok.clicked.connect(self.reset_game())
         msg.setStandardButtons(QMessageBox.Close)
-
         msg.exec_()
 
     # Расставить корабли случайно
@@ -377,7 +413,6 @@ class Battleship(bat.Ui_MainWindow):
         player_tracking = player_tracking[0]["PlayerTracking"]
         player_primary = player_primary[0]["PlayerBoard"]
 
-        #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         for i in range(100):
             #  Коды ячеек
             #     0 - Пустая, без попадания
@@ -387,7 +422,6 @@ class Battleship(bat.Ui_MainWindow):
             #     4 - Зона вокруг корабля, без попадания
 
             # Поле игрока
-
             # Если клетка пустая без попадания
             if player_primary[i] == 0:
                 self.board_player_primary[i].setStyleSheet("background-color: rgb(255, 255, 255);")
@@ -399,7 +433,7 @@ class Battleship(bat.Ui_MainWindow):
 
             # Если пустая с попаданием
             if player_primary[i] == 2:
-                self.board_player_primary[i].setStyleSheet("""background-image: url(block1.png);
+                self.board_player_primary[i].setStyleSheet("""background-image: url(block.png);
                                                           background-repeat: no-repeat;
                                                           background-position: center center;
                                                           background-attachment: fixed;

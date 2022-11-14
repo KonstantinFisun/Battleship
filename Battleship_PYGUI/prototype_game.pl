@@ -11,7 +11,7 @@ player_board(Board,Ship):-
 play_game :-
     assert(hit_ships(player,[])), % Попадания игрока
     assert(hit_ships(computer,[])), % Попадание компьютера
-    board(empty_board, Empty),
+    board(empty_board, Empty), % Получение пустого поля
 
 
 
@@ -21,36 +21,37 @@ play_game :-
     generateComputerBoard(ComputerBoard), % Получаем поле компьютера
     assert( board(computer_primary, ComputerBoard) ), % Добавление поля компьютера в базу
     assert( board(computer_tracking, Empty) ), % Добавление помеченное поле компьютера в базу
-    assert( computer_mode(hunt) ), % Добавляем предикат
+    assert( computer_mode(hunt) ), % Добавляем предиката охоты компьютера
 
-    assert(message('')).
+    assert(message('')). % Добавляем пустое сообщение для вывода
 
 
 
 % ------------------------------------------------------------------------
 % Считываем ход игрока
 read_validate_move :-
-    repeat,
-    write('Сделайте ход! fire(Row, Col).'), nl,
+    repeat, % Повторяем до меток
+    write('Сделайте ход! fire(Row, Col).'), nl, % Вывод сообщения
     (   catch(read(fire(Row, Col)), error(_, _), false), % ловим ошибки при вводе
         validate(Row, Col), % Проверяем правильность аргументов
         assert( current_move(Row, Col) ) % Добавляем в базу ход
-       -> !,true;
-       ( write('\nХод совпадает или некорректный!\nВведите close для выхода или любую клавишу для продолжения:'), read(A), A== 'close',!, false;fail )).
+       -> !,true; % Выход из программы
+       ( write('\nХод совпадает или некорректный!\nВведите close для выхода или любую клавишу для продолжения:'), read(A), A== 'close',!, false;fail )). % Вывод сообщения
 
 % Проверяет, являются ли заданные значения строки и столбца законным ходом для игрока
 validate(Row, Col) :-
     number(Row), number(Col), % Проверяем, что это цифры
     turn(player), % Ход игрока существует
     board(computer_primary, ComputerBoard), % Получаем доступ к полю
-    canAttempt(coord(Row, Col), ComputerBoard).
+    canAttempt(coord(Row, Col), ComputerBoard). % Проверяем, что ячейка свободна
 
 % Проверяет, являются ли заданные значения строки и столбца законным ходом для игрока
 validate(Row, Col) :-
     number(Row), number(Col),% Проверяем, что это цифры
     turn(computer), % Ход компьютера существует
     board(player_primary, PlayerBoard), % Проверяем, что такое поле существует
-    canAttempt(coord(Row, Col), PlayerBoard).
+    canAttempt(coord(Row, Col), PlayerBoard). % Проверяем, что ячейка свободна
+
 
 /*
     Коды ячеек
@@ -61,8 +62,8 @@ validate(Row, Col) :-
     4 - Зона вокруг корабля, без попадания
 */
 
-attempted(2).
-attempted(3).
+attempted(2). %  Пустая, с попаданием
+attempted(3). %  Занятая, с попаданием
 
 % Проверяем, что ячейка свободна
 % canAttempt(+Coord, +Board)
@@ -79,8 +80,8 @@ canAttempt(Coord, B) :-
 % Index - индекс
 % Space -
 my_get(Board, Index, Space) :-
-    Index > -1, Index < 100,
-    get4(Board, 0, Index, Space),!.
+    Index > -1, Index < 100, % Индекс в заданных пределах
+    get4(Board, 0, Index, Space),!. % Получаем значение ячейки на позиции
 
 % Получаем значение ячейки на позиции Index
 % get4(Board,Current,Index,Space)
@@ -98,23 +99,22 @@ get4([_|T], Curr, Index, Space) :-
 % Координаты поля
 coord(Row, Col) :-
     atomic(Row), atomic(Col), % Проверяем атом или целое
-    Row > -1, Row < 10,
-    Col > -1, Col < 10.
+    Row > -1, Row < 10, % Валидация
+    Col > -1, Col < 10. % Валидация
 
 
 % Преобразует строку и столбец в индекс
-toIndex(coord(Row, Col), Index) :-
-    Index is (Row * 10) + Col.
+toIndex(coord(Row, Col), Index) :- Index is (Row * 10) + Col.
 
 % Преобразует индекс в строку и столбец
 toCoord(Index, coord(Row, Col)) :-
-    atomic(Index),
-    Index > -1, Index < 100,
-    Row is div(Index, 10),
-    Col is mod(Index, 10).
+    atomic(Index), % Проверяем атомарность переменной
+    Index > -1, Index < 100, % Валидация
+    Row is div(Index, 10), % Получаем строку
+    Col is mod(Index, 10). % Получаем столбец
 
 
-
+% Добавляем текущий ход по индексу в базу знаний
 current_move(Index) :- current_move(Row, Col), toIndex(coord(Row, Col), Index).
 
 % ------------------------------------------------------------------------
@@ -362,18 +362,15 @@ check_win :-
 % Действие для игрока по умолчанию
 player_turn_1 :-
 
-    retract(message(_)),
-    assert(message('')),
+    retract(message(_)), % Удаляем предудыщие сообщения
+    assert(message('')), % Обновляем памяь
 
     % Добавляем в базу, что это ход игрока
     assert( turn(player) ),!.
 
-    % получаем ход игрока
-
 player_turn_2:-
     % Обновляем поля при данном ходе
     update_boards,
-
 
     % Получение результатов этого хода
     turn_result,
@@ -386,9 +383,6 @@ player_turn_2:-
 
     % Удаляем текущий ход
     retract( current_move(_,_) ),!.
-
-    % Выполнить проверку кто делает следующий ход через попадание
-
 
 % ----------------------------------------------------------------------------------
 
@@ -419,65 +413,7 @@ computer_turn :-
     % Удаляем текущий ход
     retract( current_move(_,_) ),!.
 
- % Выполнить проверку кто делает следующий ход через попадание
-
-
-
-
-
-
 % --------------------------------------------------------------------------------------------
-% Вывод полей
-
-
-show_player :-
-    board(player_tracking, PlayerTracking), % Проверяем, что такой предикаты существуют
-    board(player_primary, PlayerBoard), % Проверяем, что такой предикаты существуют
-    write('+------ Ваш враг -----+'), nl,
-    show_board(PlayerTracking), nl, % Выводим поле врага
-    write('+---- Ваши корабли ---+'), nl,
-    show_board(PlayerBoard), % Выводим поле игрока
-    write('|  К - Неподбитые корабли   |'), nl,
-    write('|  П - Промах               |'), nl,
-    write('|  X - Подбитые корабли     |'), nl,
-    show_line, nl. % Вывод линии
-
-
-% Показать доску
-% show_board(+Board)
-% Board - поле
-show_board(B) :- write('+-0--1---2--3---4--5---6--7---8--9-+'),nl, write('0'), show_board(B, 0).
-
-% Вывод линии
-show_line :- write('+--------------------------------------+'), nl.
-
-
-show_board([H|T], N) :-
-    next_line(N), % Проверяем конец ли это строки
-    toDisplay(H, Disp), % Получаем значение ячейки
-    show_space(Disp), % Вывод ячейки
-    N1 = N + 1,
-    show_board(T, N1). % Идем дальше
-
-% Если последняя строка
-show_board([], _) :- write('|'), nl, show_line.
-
-% Заполняем ячейки
-show_space(Space) :- write('| '), write(Space), write(' ').
-
-% Проверяем конец строки
-next_line(N) :- ((X is mod(N, 10), X > 0);N = 0),!.
-next_line(N) :- \+ N = 0, 0 is mod(N, 10), write('|'), nl, show_line, X is div(N,10),write(X).
-
-% Отображение ячеек у доски
-toDisplay(0, '~').
-toDisplay(1, 'К').
-toDisplay(2, 'П').
-toDisplay(3, 'X').
-toDisplay(4, '--').
-
-
-% -------------------------------------------------------------
 
 
 % Показывает игроку результат текущего хода
@@ -492,15 +428,16 @@ turn_result :-
 
     current_move(Row, Col), % Текущий ход
 
-    message(Mes),
+    message(Mes), % Получаем сообщение из базы
 
+    % Добавляем новое сообщение
     string_concat('\nВы попали в корабль с координатами (',Row,R0),
     string_concat(Mes, R0, R1),
     string_concat(R1,', ',R2),
     string_concat(R2,Col,R3),
     string_concat(R3,')!\n',R4),
-    retract(message(_)),
-    assert(message(R4)),
+    retract(message(_)), % Удаляем предудыщие
+    assert(message(R4)), % Добавляем новое
     !.
 
 
@@ -508,11 +445,12 @@ turn_result :-
     hit_attempt(miss), % Если был промах
     turn(player), % Ход игрока
 
-    message(Mes),
+    message(Mes), % Получаем сообщение из базы
 
+    % Добавляем новое сообщение
     string_concat(Mes,'Вы промазали',R0),
-    retract(message(_)),
-    assert(message(R0)),
+    retract(message(_)), % Удаляем предудыщие
+    assert(message(R0)), % Добавляем новое
     !.
 
 
@@ -530,29 +468,31 @@ turn_result :-
     % Корабль не был уничтожен
     (   retract(destroy_ship(_)),current_move(Row, Col), % Текущий ход
 
-    message(Mes),
+    message(Mes), % Получаем сообщение из базы
 
+    % Добавляем новое сообщение
     string_concat('\n Враг попал в ваш корабль с координатами (',Row,R0),
     string_concat(Mes, R0, R1),
     string_concat(R1,', ',R2),
     string_concat(R2,Col,R3),
     string_concat(R3,')!\n',R4),
-    retract(message(_)),
-    assert(message(R4)),
+    retract(message(_)), % Удаляем предудыщие
+    assert(message(R4)), % Добавляем новое
 
     !;
 
     current_move(Row, Col), % Текущий ход
 
-    message(Mes),
+    message(Mes), % Получаем сообщение из базы
 
+    % Добавляем новое сообщение
     string_concat('\n Враг попал в ваш корабль с координатами (',Row,R0),
     string_concat(Mes, R0, R1),
     string_concat(R1,', ',R2),
     string_concat(R2,Col,R3),
     string_concat(R3,')!\n',R4),
-    retract(message(_)),
-    assert(message(R4)),
+    retract(message(_)), % Удаляем предудыщие
+    assert(message(R4)), % Добавляем новое
 
     !).
 
@@ -561,15 +501,16 @@ turn_result :-
     turn(computer), % Ход компьютера
     current_move(Row, Col), % Текущий ход
 
-    message(Mes),
+    message(Mes),  % Получаем сообщение из базы
 
+    % Добавляем новое сообщение
     string_concat('\nВраг промазал, попав в(',Row,R0),
     string_concat(Mes, R0, R1),
     string_concat(R1,', ',R2),
     string_concat(R2,Col,R3),
     string_concat(R3,')!\n',R4),
-    retract(message(_)),
-    assert(message(R4)),
+    retract(message(_)), % Удаляем предудыщие
+    assert(message(R4)), % Добавляем новое
 
     !.
 
@@ -628,13 +569,14 @@ delete_ship_for_player:-
     % Добавляем в базу новый список кораблей
     assert(ship(computer,NewShipsComputer)),
 
-    message(Mes),
+    message(Mes), % Получаем сообщение из базы
 
+    % Добавляем новое сообщение
     string_concat(Mes,'\nВы потопили корабль врага c индексами : ',R0),
     p(Ship,ShipST), % Список в строку
     string_concat(R0,ShipST,R1),
-    retract(message(_)),
-    assert(message(R1)),
+    retract(message(_)), % Удаляем предудыщие
+    assert(message(R1)), % Добавляем новое
 
     !.
 
@@ -696,16 +638,17 @@ delete_ship_for_computer:-
     assert(destroy_ship(1)),
 
 
-    message(Mes),
+    message(Mes), % Получаем сообщение из базы
 
     string_concat(Mes,'\nВраг потопил ваш корабль c индексами : ',R0),
     p(Ship,ShipST), % Список в строку
     string_concat(R0,ShipST,R1),
-    retract(message(_)),
-    assert(message(R1)),
+    retract(message(_)), % Удаляем предыдущие сообщение
+    assert(message(R1)), % Добавляем новое
 
     !.
 
+% Приобразование списка в строку
 p([],"").
 p([H|T],S):-
     p(T,SS),
@@ -713,7 +656,6 @@ p([H|T],S):-
     concat(H,SSS,S).
 
 % Удаление всех попаданий из списка
-
 delete_list(R,[],R):-!.
 delete_list(HitPlayer,[H|T],NewHitPlayer):-
     delete(HitPlayer,H,HitPlayer1),
@@ -727,7 +669,7 @@ all_permutation(ListHit,ListShips,Num,Ship):-
     !,Num1 is Num + 1,
     all_permutation(ListHit,ListShips,Num1,Ship).
 
-
+% Размещение кораблей
 permition_ship(ListHit,ListShips,Num,Ship):-permutation(ListHit,Num,Ship),member(Ship,ListShips),!.
 
 % Размещения
