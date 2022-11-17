@@ -1,5 +1,4 @@
 from __future__ import unicode_literals
-import sys
 from pyswip import Prolog, Functor, Variable, Query
 import bat
 import Manually
@@ -526,7 +525,6 @@ def main():
     ui.setupUi(MainWindow)
     MainWindow.show()
     sys.exit(app.exec_())
-
 
 
 if __name__ == "__main__":
